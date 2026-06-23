@@ -3,6 +3,7 @@ load_dotenv()
 
 from src.workflow.graph.graph import app_fluxo
 from langchain_core.messages import HumanMessage
+from time import sleep
 
 while True:
     try:
@@ -12,6 +13,8 @@ while True:
             fim = "Encerrando"
             for c in range(4):
                 print(fim + "." * (c))
+                if c != 3:
+                    sleep(1)
             break
             
         estado_inicial = {

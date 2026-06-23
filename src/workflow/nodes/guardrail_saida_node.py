@@ -2,7 +2,10 @@ from src.workflow.state import Estado
 from langchain_core.messages import RemoveMessage, SystemMessage, HumanMessage, AIMessage
 from src.core.llm.llm_groq import llm_groq
 from src.core.guardrails.anonymize import desanonimizar_texto
-from src.prompts.system_prompts import PROMPT_GUARDRAIL_SAIDA
+
+PROMPT_GUARDRAIL_SAIDA = """
+
+"""
 
 def no_guardrail_saida(estado: Estado) -> dict:
     ultima_msg_texto = estado["messages"][-1].content
