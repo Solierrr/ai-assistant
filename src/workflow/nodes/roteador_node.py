@@ -1,7 +1,10 @@
 from src.workflow.state import Estado
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from src.core.llm.llm_groq import llm_groq
-from src.prompts.system_prompts import PROMPT_ROTEADOR
+
+PROMPT_ROTEADOR = """
+
+"""
 
 def no_roteador(estado: Estado) -> dict:
     mensagens_com_contexto = [SystemMessage(content=PROMPT_ROTEADOR)] + estado["messages"]
