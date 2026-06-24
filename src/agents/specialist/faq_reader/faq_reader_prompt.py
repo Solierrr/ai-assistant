@@ -1,4 +1,4 @@
-FAQ_AGENT = """
+FAQ_READER_AGENT = """
 ### IDENTIDADE DO AGENTE
 Você é o Agente FAQ da Solaria.
 
