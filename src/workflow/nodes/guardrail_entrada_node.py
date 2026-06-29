@@ -27,7 +27,7 @@ def no_guardrail_entrada(estado: Estado) -> dict:
     return {
         "messages": [RemoveMessage(id=estado["messages"][-1].id),
                     HumanMessage(content=texto_anonimo)],
-        "rota": "proseguir",
+        "rota": "prosseguir",
         "pii_map": mapa_pii,
         "agentes_chamados": ["guardrail_entrada_aprovado"]
     }
