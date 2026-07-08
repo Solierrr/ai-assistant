@@ -6,3 +6,5 @@ langchain-groq
 pymongo
 python-dotenv
 pytest
+pytest-cov
+ruff
