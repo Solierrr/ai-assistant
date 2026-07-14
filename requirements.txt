@@ -1,4 +1,5 @@
 langgraph
+langgraph-checkpoint-mongodb
 langchain
 langchain-core
 langchain-google-genai
