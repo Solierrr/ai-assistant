@@ -1,14 +1,18 @@
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings
+from pydantic_settings import SettingsConfigDict
 
 
 class Settings(BaseSettings):
 
-    MONGO_URI: str
+    MONGO_URI: str = Field(
+        "mongodb://localhost:27017",
+        validation_alias=AliasChoices("MONGO_URI", "MONGODB_URI"),
+    )
 
-    MONGO_DB: str
+    MONGO_DB: str = "assessor_inteligente"
 
-    class Config:
-        env_file = ".env"
+    model_config = SettingsConfigDict(env_file=".env")
 
 
 settings = Settings()
