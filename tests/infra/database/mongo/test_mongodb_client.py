@@ -3,7 +3,7 @@ import asyncio
 from src.infra.database.mongo import mongodb_client as mongodb_client_module
 
 
-class FakeAsyncIOMotorClient:
+class FakeAsyncMongoClient:
     def __init__(self, uri):
         self.uri = uri
         self.databases = {}
@@ -17,8 +17,8 @@ class FakeAsyncIOMotorClient:
 def test_connect_creates_client_and_selects_database(monkeypatch):
     monkeypatch.setattr(
         mongodb_client_module,
-        "AsyncIOMotorClient",
-        FakeAsyncIOMotorClient
+        "AsyncMongoClient",
+        FakeAsyncMongoClient
     )
     monkeypatch.setattr(
         mongodb_client_module.settings,

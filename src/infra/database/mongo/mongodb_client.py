@@ -1,4 +1,4 @@
-from motor.motor_asyncio import AsyncIOMotorClient
+from pymongo import AsyncMongoClient
 from src.core.config.settings import settings
 
 
@@ -9,7 +9,7 @@ class MongoDBClient:
 
     @classmethod
     async def connect(cls):
-        cls.client = AsyncIOMotorClient(
+        cls.client = AsyncMongoClient(
             settings.MONGO_URI
         )
 
