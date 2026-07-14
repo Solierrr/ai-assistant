@@ -1,1 +1,1 @@
-from .Estado import Estado
+from .Estado import Estado as Estado
