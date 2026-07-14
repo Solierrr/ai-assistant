@@ -17,6 +17,7 @@ Novas Mensagens para incorporar:
 Novo Resumo Final:
 """
 
+
 def no_condensar_historico(estado: Estado) -> dict:
     historico_mensagens = estado.get("messages", [])
     resumo_atual = estado.get("resumo", "")
@@ -28,8 +29,6 @@ def no_condensar_historico(estado: Estado) -> dict:
     # Vamos deixar as 2 últimas mensagens vivas (para manter o contexto imediato do chat)
     # e resumir todas as anteriores.
     mensagens_para_resumir = historico_mensagens[:-2]
-    mensagens_para_manter = historico_mensagens[-2:]
-
     # Formata as mensagens antigas em formato de texto para o LLM ler
     texto_mensagens = ""
     for msg in mensagens_para_resumir:
@@ -39,10 +38,12 @@ def no_condensar_historico(estado: Estado) -> dict:
     # Chama o LLM para gerar o novo resumo consolidado
     prompt_formatado = PROMPT_COMPACTAR.format(
         resumo_atual=resumo_atual if resumo_atual else "(Nenhum resumo ainda)",
-        novas_mensagens=texto_mensagens
+        novas_mensagens=texto_mensagens,
     )
-    
-    novo_resumo = llm_groq().invoke([HumanMessage(content=prompt_formatado)]).content.strip()
+
+    novo_resumo = (
+        llm_groq().invoke([HumanMessage(content=prompt_formatado)]).content.strip()
+    )
 
     # Cria uma lista de comandos de remoção para as mensagens que foram resumidas
     comandos_remocao = [RemoveMessage(id=msg.id) for msg in mensagens_para_resumir]
@@ -51,5 +52,5 @@ def no_condensar_historico(estado: Estado) -> dict:
     return {
         "resumo": novo_resumo,
         "messages": comandos_remocao,
-        "agentes_chamados": ["condensador_memoria"]
+        "agentes_chamados": ["condensador_memoria"],
     }
