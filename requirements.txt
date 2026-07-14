@@ -1,9 +1,11 @@
 langgraph
+langgraph-checkpoint-mongodb
 langchain
 langchain-core
 langchain-google-genai
 langchain-groq
 pymongo
+pydantic-settings
 python-dotenv
 pytest
 pytest-cov
