@@ -1,10 +1,11 @@
-from src.workflow.state import Estado
-from langchain_core.messages import SystemMessage, AIMessage
+from langchain_core.messages import AIMessage, SystemMessage
+
+from src.agents.base.base_prompt import build_system_prompt
+from src.agents.specialist.router.router_prompt import ROUTER_AGENT
 from src.core.llm.llm_groq import llm_groq
+from src.workflow.state import Estado
 
-PROMPT_ROTEADOR = """
-
-"""
+PROMPT_ROTEADOR = build_system_prompt(ROUTER_AGENT)
 
 
 def no_roteador(estado: Estado) -> dict:
@@ -14,7 +15,6 @@ def no_roteador(estado: Estado) -> dict:
     saida = llm_groq().invoke(mensagens_com_contexto).content
 
     if "ROUTE=" in saida:
-        # Extrai a rota dinâmica (ex: ROUTE=financeiro)
         rota_extraida = saida.split("ROUTE=")[1].strip().splitlines()[0]
         return {"rota": rota_extraida, "agentes_chamados": ["roteador"]}
 

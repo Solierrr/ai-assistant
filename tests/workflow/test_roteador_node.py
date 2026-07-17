@@ -3,6 +3,8 @@ from unittest.mock import Mock
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
+from src.agents.base.system_prompt import SYSTEM_CORE_COMUNICACAO, SYSTEM_CORE_SEGURANCA
+from src.agents.specialist.router.router_prompt import ROUTER_AGENT
 from src.workflow.nodes import roteador_node
 
 
@@ -27,6 +29,9 @@ def test_no_roteador_extrai_rota_quando_llm_retorna_route(monkeypatch):
 
     mensagens_enviadas = llm.invoke.call_args.args[0]
     assert isinstance(mensagens_enviadas[0], SystemMessage)
+    assert SYSTEM_CORE_SEGURANCA.strip() in mensagens_enviadas[0].content
+    assert SYSTEM_CORE_COMUNICACAO.strip() in mensagens_enviadas[0].content
+    assert ROUTER_AGENT.strip() in mensagens_enviadas[0].content
     assert isinstance(mensagens_enviadas[1], HumanMessage)
 
 

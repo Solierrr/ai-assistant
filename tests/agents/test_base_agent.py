@@ -29,6 +29,7 @@ def test_build_agent_monta_prompt_e_cria_agente(monkeypatch):
     resultado = base_agent.build_agent(
         "PROMPT ESPECIFICO",
         tools=["ferramenta"],
+        include_communication_standards=False,
         user_type="fornecedor",
         user_details={"empresa": "Solaria"},
         include_date=False,
@@ -37,6 +38,7 @@ def test_build_agent_monta_prompt_e_cria_agente(monkeypatch):
     assert resultado is agente
     build_prompt.assert_called_once_with(
         specific_prompt="PROMPT ESPECIFICO",
+        include_communication_standards=False,
         user_type="fornecedor",
         user_details={"empresa": "Solaria"},
         include_date=False,
