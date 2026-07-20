@@ -14,15 +14,14 @@ def test_get_user_context_data_retorna_dados_da_conversa(monkeypatch):
     repo = Mock()
     repo.find_by_id = AsyncMock(
         return_value={
-            "tipo_usuario": "fornecedor",
-            "detalhes_usuario": {"empresa": "Solaria"},
+            "user_type": "fornecedor",
         }
     )
     monkeypatch.setattr(base_memory, "ConversationRepository", Mock(return_value=repo))
 
     resultado = asyncio.run(base_memory.get_user_context_data("conv-1"))
 
-    assert resultado == ("fornecedor", {"empresa": "Solaria"})
+    assert resultado == ("fornecedor", {})
     repo.find_by_id.assert_awaited_once_with("conv-1")
 
 
