@@ -9,7 +9,7 @@ from src.workflow.nodes import (
     no_condensar_historico,
 )
 from src.workflow.edges import decidir_pos_entrada, decidir_pos_roteador
-from src.memory.session.mongo_checkpointer import criar_checkpointer_mongo
+from src.memory.session.mongo_checkpointer import create_mongo_checkpointer
 
 grafo = StateGraph(Estado)
 
@@ -36,6 +36,6 @@ grafo.add_conditional_edges(
 grafo.add_edge("orquestrador", "guardrail_saida")
 grafo.add_edge("guardrail_saida", END)
 
-memory = criar_checkpointer_mongo()
+memory = create_mongo_checkpointer()
 
 app_fluxo = grafo.compile(checkpointer=memory)
