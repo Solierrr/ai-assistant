@@ -23,10 +23,26 @@ def test_conversation_schema_accepts_expected_fields():
     assert conversation.conversation_id == "conv-1"
     assert conversation.user_id == 123
     assert conversation.user_type == "lead"
+    assert conversation.user_details == {}
     assert conversation.active_agent == "router"
     assert conversation.status == "active"
     assert conversation.started_at == started_at
     assert conversation.last_interaction_at == last_interaction_at
+
+
+def test_conversation_schema_accepts_user_details():
+    conversation = ConversationSchema(
+        conversation_id="conv-1",
+        user_id=123,
+        user_type="supplier",
+        user_details={"company": "Solaria"},
+        active_agent="router",
+        status="active",
+        started_at=datetime(2026, 7, 1, 10, 0, 0),
+        last_interaction_at=datetime(2026, 7, 1, 10, 5, 0),
+    )
+
+    assert conversation.user_details == {"company": "Solaria"}
 
 
 def test_message_schema_defaults_optional_fields():
