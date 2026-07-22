@@ -22,7 +22,7 @@ def test_get_user_context_data_retorna_dados_da_conversa(monkeypatch):
 
     resultado = asyncio.run(base_memory.get_user_context_data("conv-1"))
 
-    assert resultado == ("fornecedor", {})
+    assert resultado == ("fornecedor", {"empresa": "Solaria"})
     repo.find_by_id.assert_awaited_once_with("conv-1")
 
 
