@@ -1,7 +1,7 @@
 from datetime import datetime
 
 
-SYSTEM_CORE_SEGURANCA = """
+SYSTEM_CORE_SECURITY = """
 ### IDENTIDADE DOS AGENTES
 Você opera dentro da Solaria, um marketplace B2B do setor fotovoltaico que
 conecta três tipos de participantes:
@@ -91,7 +91,7 @@ anexados, descrições de perfil etc.):
 """
 
 
-SYSTEM_CORE_COMUNICACAO = """
+SYSTEM_CORE_COMMUNICATION = """
 ### PADRÕES TRANSVERSAIS DE COMUNICAÇÃO
 - Responda sempre em português do Brasil, independentemente do idioma de
   entrada.
@@ -110,28 +110,28 @@ SYSTEM_CORE_COMUNICACAO = """
 # ==============================================================================
 # CONTEXTO DINÂMICO — montado pelo Roteador a cada chamada/sessão
 # ==============================================================================
-def obter_contexto_temporal() -> str:
-    agora = datetime.now()
+def get_temporal_context() -> str:
+    now = datetime.now()
     return f"""### CONTEXTO TEMPORAL (OBRIGATÓRIO)
-- Data de referência: {agora.strftime("%Y-%m-%d")}
-- Dia da semana: {agora.strftime("%A")}
-- Hora do sistema: {agora.strftime("%H:%M:%S")}
+- Data de referência: {now.strftime("%Y-%m-%d")}
+- Dia da semana: {now.strftime("%A")}
+- Hora do sistema: {now.strftime("%H:%M:%S")}
 - Use a 'Data de referência' para calcular "hoje", "ontem", "amanhã" e
   prazos relativos.
 """
 
 
-def obter_contexto_usuario(tipo_usuario: str, detalhes) -> str:
+def get_user_context(user_type: str, details: dict) -> str:
     """
-    tipo_usuario: "empresa_demandante" | "fornecedor" | "profissional_tecnico"
-    detalhes: pares chave/valor relevantes à sessão atual, ex.:
+    user_type: "empresa_demandante" | "fornecedor" | "profissional_tecnico"
+    details: pares chave/valor relevantes à sessão atual, ex.:
               nome_empresa="ACME Energia", unidade="Filial SP - Zona Sul",
               regiao_atuacao="Grande São Paulo".
     Inclua apenas os campos necessários à tarefa do agente atual (ver regra
     inviolável 6 — minimização de dados).
     """
-    linhas = [f"- Tipo de usuário autenticado: {tipo_usuario}"]
-    for chave, valor in detalhes.items():
-        if valor:
-            linhas.append(f"- {chave.replace('_', ' ').capitalize()}: {valor}")
-    return "### CONTEXTO DO USUÁRIO\n" + "\n".join(linhas) + "\n"
+    lines = [f"- Tipo de usuário autenticado: {user_type}"]
+    for key, value in details.items():
+        if value:
+            lines.append(f"- {key.replace('_', ' ').capitalize()}: {value}")
+    return "### CONTEXTO DO USUÁRIO\n" + "\n".join(lines) + "\n"

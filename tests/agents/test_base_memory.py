@@ -15,6 +15,7 @@ def test_get_user_context_data_retorna_dados_da_conversa(monkeypatch):
     repo.find_by_id = AsyncMock(
         return_value={
             "user_type": "fornecedor",
+            "user_details": {"empresa": "Solaria"},
         }
     )
     monkeypatch.setattr(base_memory, "ConversationRepository", Mock(return_value=repo))

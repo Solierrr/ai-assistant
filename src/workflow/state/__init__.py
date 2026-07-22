@@ -1,1 +1,1 @@
-from .Estado import Estado as Estado
+from .state import GraphState as GraphState
