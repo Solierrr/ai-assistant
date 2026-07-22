@@ -1,12 +1,12 @@
 from langgraph.checkpoint.mongodb import MongoDBSaver
-from src.infra.database.mongodb_client import obter_cliente_mongodb
+from src.infra.database.mongodb_sync_client import get_mongodb_client
 
-def criar_checkpointer_mongo() -> MongoDBSaver:
+def create_mongo_checkpointer() -> MongoDBSaver:
     """Inicializa o gerenciador de persistência de curto prazo no MongoDB."""
-    cliente = obter_cliente_mongodb()
+    client = get_mongodb_client()
     
     checkpointer = MongoDBSaver(
-        client=cliente,
+        client=client,
         db_name="assessor_inteligente",
         collection_name="checkpoints_conversas"
     )
