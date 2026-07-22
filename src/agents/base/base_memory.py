@@ -24,7 +24,9 @@ async def get_user_context_data(conversation_id: str) -> tuple[str | None, dict]
     if not conversation:
         return None, {}
 
-    return conversation.get("user_type"), {}
+    user_type = conversation.get("user_type")
+    details = conversation.get("user_details", {})
+    return user_type, details
 
 
 async def log_interaction(
