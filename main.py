@@ -16,7 +16,7 @@ async def startup():
 
 
 def run_chat():
-    from src.workflow.graph.graph import app_fluxo
+    from src.workflow.graph.graph import compiled_app
 
     while True:
         try:
@@ -30,19 +30,19 @@ def run_chat():
                         sleep(1)
                 break
 
-            estado_inicial = {
+            initial_state = {
                 "messages": [HumanMessage(content=user_input)],
-                "rota": "",
+                "route": "",
                 "pii_map": {},
-                "agentes_chamados": [],
+                "called_agents": [],
             }
 
-            estado_final = app_fluxo.invoke(
-                estado_inicial,
+            final_state = compiled_app.invoke(
+                initial_state,
                 config={"configurable": {"thread_id": "id"}},
             )
 
-            print(f"{estado_final['messages'][-1].content}")
+            print(f"{final_state['messages'][-1].content}")
 
         except Exception as e:
             print(f"Ocorreu um erro: {e}")

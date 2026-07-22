@@ -1,8 +1,8 @@
 from src.agents.base.system_prompt import (
-    SYSTEM_CORE_COMUNICACAO,
-    SYSTEM_CORE_SEGURANCA,
-    obter_contexto_temporal,
-    obter_contexto_usuario,
+    SYSTEM_CORE_COMMUNICATION,
+    SYSTEM_CORE_SECURITY,
+    get_temporal_context,
+    get_user_context,
 )
 
 
@@ -16,17 +16,17 @@ def build_system_prompt(
     """Monta o system prompt final combinando SYSTEM_CORE, o prompt
     específico do agente e o contexto temporal/de usuário quando aplicável.
     Único lugar do projeto que deve concatenar esses blocos."""
-    parts = [SYSTEM_CORE_SEGURANCA.strip()]
+    parts = [SYSTEM_CORE_SECURITY.strip()]
 
     if include_communication_standards:
-        parts.append(SYSTEM_CORE_COMUNICACAO.strip())
+        parts.append(SYSTEM_CORE_COMMUNICATION.strip())
 
     parts.append(specific_prompt.strip())
 
     if include_date:
-        parts.append(obter_contexto_temporal().strip())
+        parts.append(get_temporal_context().strip())
 
     if user_type:
-        parts.append(obter_contexto_usuario(user_type, user_details or {}).strip())
+        parts.append(get_user_context(user_type, user_details or {}).strip())
 
     return "\n\n".join(parts)
