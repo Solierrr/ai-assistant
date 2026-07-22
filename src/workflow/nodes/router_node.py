@@ -9,9 +9,7 @@ ROUTER_PROMPT = build_system_prompt(ROUTER_AGENT)
 
 
 def router_node(state: GraphState) -> dict:
-    messages_with_context = [SystemMessage(content=ROUTER_PROMPT)] + state[
-        "messages"
-    ]
+    messages_with_context = [SystemMessage(content=ROUTER_PROMPT)] + state["messages"]
     output = llm_groq().invoke(messages_with_context).content
 
     if "ROUTE=" in output:
