@@ -1,6 +1,6 @@
 from langchain_core.messages import HumanMessage, RemoveMessage
 
-from src.core.llm import llm_groq 
+from src.core.llm import llm_groq
 from src.workflow.state import GraphState
 
 COMPACT_PROMPT = """
