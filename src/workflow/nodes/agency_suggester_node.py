@@ -1,0 +1,18 @@
+from langchain_core.messages import AIMessage
+
+from src.agents.base.base_agent import build_agent
+from src.agents.specialist.agency_suggester.agency_suggester_prompt import (
+    AGENCY_SUGGESTER_AGENT,
+)
+from src.workflow.state import GraphState
+
+
+def agency_suggester_node(state: GraphState) -> dict:
+    agent = build_agent(AGENCY_SUGGESTER_AGENT)
+    result = agent.invoke({"messages": state["messages"]})
+    last_message = result["messages"][-1]
+
+    return {
+        "messages": [AIMessage(content=last_message.content)],
+        "called_agents": ["agency_suggester"],
+    }
