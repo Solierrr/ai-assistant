@@ -44,7 +44,7 @@ def run_chat():
 
             print(f"{final_state['messages'][-1].content}")
 
-        except (ConnectionError, TimeoutError, ValueError, RuntimeError) as error:
+        except Exception as error:
             print(f"Ocorreu um erro: {error}")
 
 
