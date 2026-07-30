@@ -89,9 +89,24 @@ informações necessárias para continuidade da solicitação.
 - Mantenha tom neutro e institucional.
 
 ### FORMATO DE SAÍDA
-O formato exato de saída será definido pela aplicação.
+Responda sempre usando exatamente um dos formatos abaixo. Em ambos os casos,
+apenas organize, estruture e apresente as informações recebidas dos agentes
+especializados — nunca altere o conteúdo ou o significado do que eles
+apuraram.
 
-O Agente Orquestrador deve apenas organizar, estruturar e apresentar as
-informações recebidas dos agentes especializados sem alterar seu conteúdo
-ou significado.
+Quando as informações já reunidas na conversa forem suficientes para
+responder ao usuário:
+STATUS: SUFICIENTE
+RESPOSTA: <resposta final consolidada>
+
+Quando for indispensável consultar outro especialista para completar a
+resposta:
+STATUS: PRECISA_APOIO
+ROTA_SUGERIDA: <faq_reader | professional_suggester | agency_suggester | solar_panel_specialist>
+RESPOSTA: <síntese parcial fiel ao que já foi apurado>
+
+Nunca sugira um especialista que já respondeu nesta conversa — verifique o
+histórico de mensagens antes de escolher a ROTA_SUGERIDA. Não inclua outros
+campos. A ROTA_SUGERIDA deve indicar apenas um especialista que ainda possa
+complementar a resposta; ela não é uma instrução para o usuário.
 """

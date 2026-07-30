@@ -4,12 +4,13 @@ from src.agents.base.base_agent import build_agent
 from src.agents.specialist.agency_suggester.agency_suggester_prompt import (
     AGENCY_SUGGESTER_AGENT,
 )
+from src.workflow.nodes.context import messages_with_summary
 from src.workflow.state import GraphState
 
 
 def agency_suggester_node(state: GraphState) -> dict:
     agent = build_agent(AGENCY_SUGGESTER_AGENT)
-    result = agent.invoke({"messages": state["messages"]})
+    result = agent.invoke({"messages": messages_with_summary(state)})
     last_message = result["messages"][-1]
 
     return {
