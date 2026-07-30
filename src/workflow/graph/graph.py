@@ -6,9 +6,9 @@ from src.workflow.edges import (
     decide_post_orchestrator,
     decide_post_router,
 )
-from src.workflow.nodes.input_guardrail_node import input_guardrail_node
 from src.workflow.nodes.agency_suggester_node import agency_suggester_node
 from src.workflow.nodes.faq_reader_node import faq_reader_node
+from src.workflow.nodes.input_guardrail_node import input_guardrail_node
 from src.workflow.nodes.orchestrator_node import orchestrator_node
 from src.workflow.nodes.output_guardrail_node import output_guardrail_node
 from src.workflow.nodes.professional_suggester_node import professional_suggester_node
