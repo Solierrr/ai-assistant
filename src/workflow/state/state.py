@@ -9,3 +9,5 @@ class GraphState(MessagesState):
     called_agents: Annotated[list[str], operator.add]
     summary: str
     pii_map: dict
+    orchestrator_status: str
+    suggested_route: str
