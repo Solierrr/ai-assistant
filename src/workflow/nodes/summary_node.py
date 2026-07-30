@@ -1,6 +1,7 @@
-from langchain_core.messages import RemoveMessage, HumanMessage
+from langchain_core.messages import HumanMessage, RemoveMessage
+
+from src.core.llm import llm_groq
 from src.workflow.state import GraphState
-from src.core.llm import llm_groq  # Usando o modelo rápido para resumir
 
 COMPACT_PROMPT = """
 Você é um assistente encarregado de manter um resumo conciso de uma conversa em andamento.
