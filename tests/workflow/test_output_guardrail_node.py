@@ -29,13 +29,26 @@ def test_output_guardrail_node_extracts_and_deanonymizes_response(monkeypatch):
     mensagem = AIMessage(content="Resposta do agente", id="msg-1")
 
     resultado = output_guardrail_node.output_guardrail_node(
-        {"messages": [mensagem], "pii_map": {"[PII_NOME]": "Ana"}}
+        {
+            "messages": [mensagem],
+            "pii_map": {"[PII_NOME]": "Ana"},
+            "turn_agents": ["router", "solar_panel_specialist", "orchestrator"],
+        }
     )
 
-    assert resultado["called_agents"] == ["output_guardrail"]
+    assert resultado["turn_agents"] == [
+        "router",
+        "solar_panel_specialist",
+        "orchestrator",
+        "output_guardrail",
+    ]
     assert isinstance(resultado["messages"][0], RemoveMessage)
     assert resultado["messages"][0].id == "msg-1"
     assert isinstance(resultado["messages"][1], AIMessage)
+    assert resultado["messages"][1].additional_kwargs == {
+        "specialists_used": ["solar_panel_specialist"],
+        "workflow_steps": resultado["turn_agents"],
+    }
     assert resultado["messages"][1].content == "Olá, Ana."
     deanonymize.assert_called_once_with("Olá, [PII_NOME].", {"[PII_NOME]": "Ana"})
 
@@ -48,7 +61,7 @@ def test_output_guardrail_node_preserves_text_without_header(monkeypatch):
     mensagem = AIMessage(content="Resposta do agente", id="msg-2")
 
     resultado = output_guardrail_node.output_guardrail_node(
-        {"messages": [mensagem], "pii_map": {}}
+        {"messages": [mensagem], "pii_map": {}, "turn_agents": ["router"]}
     )
 
     assert resultado["messages"][1].content == "Resposta revisada"
