@@ -6,6 +6,7 @@ from src.core.llm.llm_groq import llm_groq
 from src.workflow.edges.routing_edges import available_specialist_routes
 from src.workflow.nodes.context import messages_with_summary
 from src.workflow.state import GraphState
+from src.workflow.turn_tracking import append_turn_agent
 
 ROUTER_PROMPT = build_system_prompt(ROUTER_AGENT)
 
@@ -28,10 +29,13 @@ def router_node(state: GraphState) -> dict:
 
     if "ROUTE=" in output:
         extracted_route = output.split("ROUTE=")[1].strip().splitlines()[0].lower()
-        return {"route": extracted_route, "called_agents": ["router"]}
+        return {
+            "route": extracted_route,
+            "turn_agents": append_turn_agent(state, "router"),
+        }
 
     return {
         "messages": [AIMessage(content=output)],
         "route": "end",
-        "called_agents": ["router_direct_response"],
+        "turn_agents": append_turn_agent(state, "router_direct_response"),
     }

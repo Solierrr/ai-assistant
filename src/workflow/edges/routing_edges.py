@@ -1,27 +1,18 @@
 from src.workflow import config
 from src.workflow.state import GraphState
 
-SPECIALIST_ROUTES = frozenset(
-    {
-        "faq_reader",
-        "professional_suggester",
-        "agency_suggester",
-        "solar_panel_specialist",
-    }
-)
-
 
 def consulted_specialists(state: GraphState) -> set[str]:
-    return set(state.get("called_agents", [])) & SPECIALIST_ROUTES
+    return set(state.get("turn_agents", [])) & config.SPECIALIST_ROUTES
 
 
 def available_specialist_routes(state: GraphState) -> set[str]:
-    return SPECIALIST_ROUTES - consulted_specialists(state)
+    return config.SPECIALIST_ROUTES - consulted_specialists(state)
 
 
 def decide_post_router(state: GraphState) -> str:
     route = state.get("route", "end")
-    if route not in SPECIALIST_ROUTES:
+    if route not in config.SPECIALIST_ROUTES:
         return "end"
     if route not in available_specialist_routes(state):
         return "end"

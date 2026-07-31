@@ -42,11 +42,25 @@ def test_input_guardrail_node_approves_approved_category(monkeypatch):
 
     assert resultado["route"] == "proceed"
     assert resultado["pii_map"] == {"[PII_EMAIL]": "ana@example.com"}
-    assert resultado["called_agents"] == ["input_guardrail_approved"]
+    assert resultado["turn_agents"] == ["input_guardrail_approved"]
     assert isinstance(resultado["messages"][0], RemoveMessage)
     assert resultado["messages"][0].id == "msg-1"
     assert isinstance(resultado["messages"][1], HumanMessage)
     assert resultado["messages"][1].content == "mensagem anonima"
+
+
+def test_input_guardrail_node_resets_agents_from_previous_turn(monkeypatch):
+    _configurar_dependencias(monkeypatch, "CATEGORIA: APROVADO")
+    mensagem = HumanMessage(content="nova solicitacao", id="msg-reset")
+
+    resultado = input_guardrail_node.input_guardrail_node(
+        {
+            "messages": [mensagem],
+            "turn_agents": ["router", "solar_panel_specialist", "orchestrator"],
+        }
+    )
+
+    assert resultado["turn_agents"] == ["input_guardrail_approved"]
 
 
 def test_input_guardrail_node_blocks_non_approved_category(monkeypatch):
@@ -58,7 +72,7 @@ def test_input_guardrail_node_blocks_non_approved_category(monkeypatch):
     resultado = input_guardrail_node.input_guardrail_node({"messages": [mensagem]})
 
     assert resultado["route"] == "end"
-    assert resultado["called_agents"] == ["input_guardrail_blocked_manipulacao"]
+    assert resultado["turn_agents"] == ["input_guardrail_blocked_manipulacao"]
     assert isinstance(resultado["messages"][0], RemoveMessage)
     assert isinstance(resultado["messages"][1], AIMessage)
     assert "não posso processar" in resultado["messages"][1].content
@@ -71,4 +85,4 @@ def test_input_guardrail_node_fails_closed_without_category(monkeypatch):
     resultado = input_guardrail_node.input_guardrail_node({"messages": [mensagem]})
 
     assert resultado["route"] == "end"
-    assert resultado["called_agents"] == ["input_guardrail_blocked_indefinido"]
+    assert resultado["turn_agents"] == ["input_guardrail_blocked_indefinido"]

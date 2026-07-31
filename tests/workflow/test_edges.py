@@ -34,7 +34,7 @@ def test_decide_post_router_ends_when_route_was_already_consulted():
         decide_post_router(
             {
                 "route": "faq_reader",
-                "called_agents": ["faq_reader", "orchestrator"],
+                "turn_agents": ["faq_reader", "orchestrator"],
             }
         )
         == "end"
@@ -46,7 +46,7 @@ def test_decide_post_orchestrator_sends_sufficient_response_to_output_guardrail(
         decide_post_orchestrator(
             {
                 "orchestrator_status": "SUFICIENTE",
-                "called_agents": ["solar_panel_specialist", "orchestrator"],
+                "turn_agents": ["solar_panel_specialist", "orchestrator"],
             }
         )
         == "output_guardrail"
@@ -58,7 +58,7 @@ def test_decide_post_orchestrator_returns_to_router_when_support_is_available():
         decide_post_orchestrator(
             {
                 "orchestrator_status": "PRECISA_APOIO",
-                "called_agents": ["solar_panel_specialist", "orchestrator"],
+                "turn_agents": ["solar_panel_specialist", "orchestrator"],
             }
         )
         == "router"
@@ -76,7 +76,7 @@ def test_decide_post_orchestrator_forces_output_when_specialist_limit_is_reached
         decide_post_orchestrator(
             {
                 "orchestrator_status": "PRECISA_APOIO",
-                "called_agents": ["faq_reader", "solar_panel_specialist", "orchestrator"],
+                "turn_agents": ["faq_reader", "solar_panel_specialist", "orchestrator"],
             }
         )
         == "output_guardrail"

@@ -1,12 +1,9 @@
-import operator
-from typing import Annotated
-
 from langgraph.graph import MessagesState
 
 
 class GraphState(MessagesState):
     route: str
-    called_agents: Annotated[list[str], operator.add]
+    turn_agents: list[str]
     summary: str
     pii_map: dict
     orchestrator_status: str
