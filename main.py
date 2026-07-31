@@ -1,11 +1,10 @@
 import asyncio
-from time import sleep
+from uuid import uuid4
 
 from dotenv import load_dotenv
-from langchain_core.messages import HumanMessage
-
 from src.infra.database.mongo.indexes.create_indexes import create_indexes
 from src.infra.database.mongo.mongodb_client import MongoDBClient
+from src.workflow.runner import execute_turn
 
 load_dotenv()
 
@@ -15,8 +14,9 @@ async def startup():
     await create_indexes()
 
 
-def run_chat():
+async def run_chat():
     from src.workflow.graph.graph import compiled_app
+    conversation_id = str(uuid4())
 
     while True:
         try:
@@ -27,19 +27,13 @@ def run_chat():
                 for c in range(4):
                     print(fim + "." * c)
                     if c != 3:
-                        sleep(1)
+                        await asyncio.sleep(1)
                 break
 
-            initial_state = {
-                "messages": [HumanMessage(content=user_input)],
-                "route": "",
-                "pii_map": {},
-                "called_agents": [],
-            }
-
-            final_state = compiled_app.invoke(
-                initial_state,
-                config={"configurable": {"thread_id": "id"}},
+            final_state = await execute_turn(
+                conversation_id,
+                user_input,
+                compiled_app,
             )
 
             print(f"{final_state['messages'][-1].content}")
@@ -49,5 +43,9 @@ def run_chat():
 
 
 if __name__ == "__main__":
-    asyncio.run(startup())
-    run_chat()
+    async def main():
+        await startup()
+        await run_chat()
+
+
+    asyncio.run(main())
