@@ -2,6 +2,7 @@ import asyncio
 from uuid import uuid4
 
 from dotenv import load_dotenv
+
 from src.infra.database.mongo.indexes.create_indexes import create_indexes
 from src.infra.database.mongo.mongodb_client import MongoDBClient
 from src.workflow.runner import execute_turn
