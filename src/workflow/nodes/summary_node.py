@@ -2,6 +2,7 @@ from langchain_core.messages import HumanMessage, RemoveMessage
 
 from src.core.llm import llm_groq
 from src.workflow.state import GraphState
+from src.workflow.turn_tracking import append_turn_agent
 
 COMPACT_PROMPT = """
 Você é um assistente encarregado de manter um resumo conciso de uma conversa em andamento.
@@ -52,5 +53,5 @@ def condense_history_node(state: GraphState) -> dict:
     return {
         "summary": new_summary,
         "messages": removal_commands,
-        "called_agents": ["memory_condenser"],
+        "turn_agents": append_turn_agent(state, "memory_condenser"),
     }

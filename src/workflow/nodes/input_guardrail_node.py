@@ -33,7 +33,7 @@ def input_guardrail_node(state: GraphState) -> dict:
             ],
             "route": "end",
             "pii_map": pii_map,
-            "called_agents": [f"input_guardrail_blocked_{category.lower()}"],
+            "turn_agents": [f"input_guardrail_blocked_{category.lower()}"],
         }
 
     return {
@@ -43,5 +43,5 @@ def input_guardrail_node(state: GraphState) -> dict:
         ],
         "route": "proceed",
         "pii_map": pii_map,
-        "called_agents": ["input_guardrail_approved"],
+        "turn_agents": ["input_guardrail_approved"],
     }

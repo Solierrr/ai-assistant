@@ -24,7 +24,7 @@ def test_router_node_extracts_route_when_llm_returns_route(monkeypatch):
 
     assert resultado == {
         "route": "solar_panel_specialist",
-        "called_agents": ["router"],
+        "turn_agents": ["router"],
     }
 
     mensagens_enviadas = llm.invoke.call_args.args[0]
@@ -44,7 +44,7 @@ def test_router_node_includes_summary_and_only_offers_unused_routes(monkeypatch)
         {
             "messages": [HumanMessage(content="Preciso de ajuda")],
             "summary": "O usuário já recebeu orientação técnica.",
-            "called_agents": ["solar_panel_specialist"],
+            "turn_agents": ["solar_panel_specialist"],
             "suggested_route": "faq_reader",
         }
     )
@@ -65,7 +65,7 @@ def test_router_node_responds_directly_when_no_route(monkeypatch):
     )
 
     assert resultado["route"] == "end"
-    assert resultado["called_agents"] == ["router_direct_response"]
+    assert resultado["turn_agents"] == ["router_direct_response"]
     assert len(resultado["messages"]) == 1
     assert isinstance(resultado["messages"][0], AIMessage)
     assert resultado["messages"][0].content == "Posso ajudar com informacoes sobre a Solaria."

@@ -6,6 +6,7 @@ from src.agents.specialist.solar_panel_specialist.solar_panel_specialist_prompt 
 )
 from src.workflow.nodes.context import messages_with_summary
 from src.workflow.state import GraphState
+from src.workflow.turn_tracking import append_turn_agent
 
 
 def solar_panel_specialist_node(state: GraphState) -> dict:
@@ -15,5 +16,5 @@ def solar_panel_specialist_node(state: GraphState) -> dict:
 
     return {
         "messages": [AIMessage(content=last_message.content)],
-        "called_agents": ["solar_panel_specialist"],
+        "turn_agents": append_turn_agent(state, "solar_panel_specialist"),
     }
