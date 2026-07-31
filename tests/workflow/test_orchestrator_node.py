@@ -23,7 +23,7 @@ def test_orchestrator_node_uses_prompt_and_fallback(monkeypatch):
         {"route": "qualquer", "messages": [HumanMessage(content="Olá")]}
     )
 
-    assert resultado["called_agents"] == ["orchestrator"]
+    assert resultado["turn_agents"] == ["orchestrator"]
     assert resultado["orchestrator_status"] == "SUFICIENTE"
     assert resultado["suggested_route"] == ""
     assert isinstance(resultado["messages"][0], AIMessage)

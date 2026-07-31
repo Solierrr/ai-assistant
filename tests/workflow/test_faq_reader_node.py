@@ -17,7 +17,7 @@ def test_faq_reader_node_returns_agent_response(monkeypatch):
         {"messages": [HumanMessage(content="Qual é a garantia do painel?")]}
     )
 
-    assert result["called_agents"] == ["faq_reader"]
+    assert result["turn_agents"] == ["faq_reader"]
     assert result["messages"][0].content.startswith("A garantia")
     build_agent.assert_called_once_with(faq_reader_node.FAQ_READER_AGENT, tools=[])
     agent.invoke.assert_called_once_with(

@@ -6,6 +6,7 @@ from src.agents.specialist.agency_suggester.agency_suggester_prompt import (
 )
 from src.workflow.nodes.context import messages_with_summary
 from src.workflow.state import GraphState
+from src.workflow.turn_tracking import append_turn_agent
 
 
 def agency_suggester_node(state: GraphState) -> dict:
@@ -15,5 +16,5 @@ def agency_suggester_node(state: GraphState) -> dict:
 
     return {
         "messages": [AIMessage(content=last_message.content)],
-        "called_agents": ["agency_suggester"],
+        "turn_agents": append_turn_agent(state, "agency_suggester"),
     }
