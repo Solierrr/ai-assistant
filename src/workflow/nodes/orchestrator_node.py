@@ -6,6 +6,7 @@ from src.core.llm.llm_gemini import llm_gemini
 from src.core.llm.llm_groq import llm_groq
 from src.workflow.nodes.context import messages_with_summary
 from src.workflow.state import GraphState
+from src.workflow.turn_tracking import append_turn_agent
 
 ORCHESTRATOR_PROMPT = build_system_prompt(ORCHESTRATOR_AGENT)
 
@@ -42,7 +43,7 @@ def orchestrator_node(state: GraphState) -> dict:
 
     return {
         "messages": [AIMessage(content=response)],
-        "called_agents": ["orchestrator"],
+        "turn_agents": append_turn_agent(state, "orchestrator"),
         "orchestrator_status": status,
         "suggested_route": suggested_route,
     }

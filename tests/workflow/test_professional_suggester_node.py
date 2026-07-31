@@ -18,7 +18,7 @@ def test_professional_suggester_node_returns_agent_response(monkeypatch):
         {"messages": [HumanMessage(content="Preciso de um instalador em SP")]}
     )
 
-    assert result["called_agents"] == ["professional_suggester"]
+    assert result["turn_agents"] == ["professional_suggester"]
     assert result["messages"][0].content.startswith("Procure")
     agent.invoke.assert_called_once_with(
         {"messages": [HumanMessage(content="Preciso de um instalador em SP")]}

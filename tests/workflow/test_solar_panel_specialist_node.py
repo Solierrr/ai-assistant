@@ -18,7 +18,7 @@ def test_solar_panel_specialist_node_returns_agent_response(monkeypatch):
         {"messages": [HumanMessage(content="Qual placa solar eu devo escolher?")]}
     )
 
-    assert result["called_agents"] == ["solar_panel_specialist"]
+    assert result["turn_agents"] == ["solar_panel_specialist"]
     assert result["messages"][0].content.startswith("A placa")
     agent.invoke.assert_called_once_with(
         {"messages": [HumanMessage(content="Qual placa solar eu devo escolher?")]}
