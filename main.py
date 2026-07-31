@@ -17,6 +17,7 @@ async def startup():
 
 async def run_chat():
     from src.workflow.graph.graph import compiled_app
+
     conversation_id = str(uuid4())
 
     while True:
@@ -44,6 +45,7 @@ async def run_chat():
 
 
 if __name__ == "__main__":
+    
     async def main():
         await startup()
         await run_chat()
