@@ -45,7 +45,7 @@ async def run_chat():
 
 
 if __name__ == "__main__":
-    
+
     async def main():
         await startup()
         await run_chat()
