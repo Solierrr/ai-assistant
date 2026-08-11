@@ -6,5 +6,3 @@ class GraphState(MessagesState):
     turn_agents: list[str]
     summary: str
     pii_map: dict
-    orchestrator_status: str
-    suggested_route: str
