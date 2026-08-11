@@ -12,21 +12,13 @@ def available_specialist_routes(state: GraphState) -> set[str]:
 
 def decide_post_router(state: GraphState) -> str:
     route = state.get("route", "end")
+    if route == "orchestrator":
+        return "orchestrator"
     if route not in config.SPECIALIST_ROUTES:
         return "end"
     if route not in available_specialist_routes(state):
-        return "end"
+        return "orchestrator"
     return route
-
-
-def decide_post_orchestrator(state: GraphState) -> str:
-    if state.get("orchestrator_status") != "PRECISA_APOIO":
-        return "output_guardrail"
-    if len(consulted_specialists(state)) >= config.MAX_SPECIALISTS_PER_REQUEST:
-        return "output_guardrail"
-    if not available_specialist_routes(state):
-        return "output_guardrail"
-    return "router"
 
 
 def decide_post_input_guardrail(state: GraphState) -> str:
