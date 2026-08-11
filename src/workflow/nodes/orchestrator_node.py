@@ -16,34 +16,14 @@ def orchestrator_node(state: GraphState) -> dict:
         SystemMessage(content=ORCHESTRATOR_PROMPT),
         *messages_with_summary(state),
     ]
-    output = (
-        llm_gemini().with_fallbacks([llm_groq()]).invoke(messages_with_context).content
+    response = (
+        llm_gemini()
+        .with_fallbacks([llm_groq()])
+        .invoke(messages_with_context)
+        .content.strip()
     )
-
-    status = "SUFICIENTE"
-    suggested_route = ""
-    response = output.strip()
-
-    for line in output.splitlines():
-        key, separator, value = line.partition(":")
-        if not separator:
-            continue
-        if key.strip().upper() == "STATUS" and value.strip().upper() in {
-            "SUFICIENTE",
-            "PRECISA_APOIO",
-        }:
-            status = value.strip().upper()
-        if key.strip().upper() == "ROTA_SUGERIDA":
-            suggested_route = value.strip()
-
-    output_upper = output.upper()
-    if "RESPOSTA:" in output_upper:
-        response_start = output_upper.index("RESPOSTA:") + len("RESPOSTA:")
-        response = output[response_start:].strip()
 
     return {
         "messages": [AIMessage(content=response)],
         "turn_agents": append_turn_agent(state, "orchestrator"),
-        "orchestrator_status": status,
-        "suggested_route": suggested_route,
     }
