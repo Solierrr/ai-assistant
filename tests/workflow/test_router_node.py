@@ -22,10 +22,7 @@ def test_router_node_extracts_route_when_llm_returns_route(monkeypatch):
         {"messages": [HumanMessage(content="Preciso de paineis solares")]}
     )
 
-    assert resultado == {
-        "route": "solar_panel_specialist",
-        "turn_agents": ["router"],
-    }
+    assert resultado == {"route": "solar_panel_specialist", "turn_agents": ["router"]}
 
     mensagens_enviadas = llm.invoke.call_args.args[0]
     assert isinstance(mensagens_enviadas[0], SystemMessage)
@@ -36,7 +33,22 @@ def test_router_node_extracts_route_when_llm_returns_route(monkeypatch):
     assert isinstance(mensagens_enviadas[2], HumanMessage)
 
 
-def test_router_node_includes_summary_and_only_offers_unused_routes(monkeypatch):
+def test_router_node_returns_route_to_orchestrator_when_llm_says_so(monkeypatch):
+    llm = _mock_llm("ROUTE=orchestrator")
+    monkeypatch.setattr(router_node, "llm_groq", Mock(return_value=llm))
+
+    resultado = router_node.router_node(
+        {
+            "messages": [HumanMessage(content="Já respondeu tudo que eu precisava")],
+            "turn_agents": ["solar_panel_specialist"],
+        }
+    )
+
+    assert resultado["route"] == "orchestrator"
+    assert resultado["turn_agents"] == ["solar_panel_specialist", "router"]
+
+
+def test_router_node_only_offers_unused_routes(monkeypatch):
     llm = _mock_llm("ROUTE=faq_reader")
     monkeypatch.setattr(router_node, "llm_groq", Mock(return_value=llm))
 
@@ -45,7 +57,6 @@ def test_router_node_includes_summary_and_only_offers_unused_routes(monkeypatch)
             "messages": [HumanMessage(content="Preciso de ajuda")],
             "summary": "O usuário já recebeu orientação técnica.",
             "turn_agents": ["solar_panel_specialist"],
-            "suggested_route": "faq_reader",
         }
     )
 
@@ -68,4 +79,19 @@ def test_router_node_responds_directly_when_no_route(monkeypatch):
     assert resultado["turn_agents"] == ["router_direct_response"]
     assert len(resultado["messages"]) == 1
     assert isinstance(resultado["messages"][0], AIMessage)
-    assert resultado["messages"][0].content == "Posso ajudar com informacoes sobre a Solaria."
+
+
+def test_router_node_short_circuits_to_orchestrator_when_limit_reached(monkeypatch):
+    llm = Mock()
+    monkeypatch.setattr(router_node, "llm_groq", Mock(return_value=llm))
+    monkeypatch.setattr(router_node.config, "MAX_SPECIALISTS_PER_REQUEST", 1)
+
+    resultado = router_node.router_node(
+        {
+            "messages": [HumanMessage(content="Mais uma pergunta")],
+            "turn_agents": ["faq_reader"],
+        }
+    )
+
+    assert resultado["route"] == "orchestrator"
+    llm.invoke.assert_not_called()
