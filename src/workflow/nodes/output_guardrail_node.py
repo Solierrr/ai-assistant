@@ -15,9 +15,31 @@ OUTPUT_GUARDRAIL_PROMPT = build_system_prompt(
 def output_guardrail_node(state: GraphState) -> dict:
     last_message_text = state["messages"][-1].content
     formatted_prompt = OUTPUT_GUARDRAIL_PROMPT.format(resposta=last_message_text)
-    reviewed_response = (
-        llm_groq().invoke([HumanMessage(content=formatted_prompt)]).content
-    )
+
+    try:
+        reviewed_response = (
+            llm_groq().invoke([HumanMessage(content=formatted_prompt)]).content
+        )
+    except Exception:
+        # Falha fechado: se a revisão de compliance não puder rodar, não
+        # deixa a resposta não revisada do agente vazar pro usuário.
+        workflow_steps = append_turn_agent(state, "output_guardrail_failed_closed")
+        return {
+            "messages": [
+                RemoveMessage(id=state["messages"][-1].id),
+                AIMessage(
+                    content=(
+                        "Desculpe, não consegui concluir a revisão de "
+                        "segurança da resposta. Tente novamente em instantes."
+                    ),
+                    additional_kwargs={
+                        "specialists_used": specialists_used(workflow_steps),
+                        "workflow_steps": workflow_steps,
+                    },
+                ),
+            ],
+            "turn_agents": workflow_steps,
+        }
 
     final_response = reviewed_response
     if "RESPOSTA:" in reviewed_response.upper():

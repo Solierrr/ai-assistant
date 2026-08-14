@@ -66,3 +66,22 @@ def test_output_guardrail_node_preserves_text_without_header(monkeypatch):
 
     assert resultado["messages"][1].content == "Resposta revisada"
     deanonymize.assert_called_once_with("Resposta revisada", {})
+
+
+def test_output_guardrail_node_fails_closed_on_llm_error(monkeypatch):
+    llm = Mock()
+    llm.invoke.side_effect = RuntimeError("timeout")
+    deanonymize = Mock()
+    monkeypatch.setattr(output_guardrail_node, "llm_groq", Mock(return_value=llm))
+    monkeypatch.setattr(output_guardrail_node, "deanonymize_text", deanonymize)
+    mensagem = AIMessage(content="Resposta do agente", id="msg-3")
+
+    resultado = output_guardrail_node.output_guardrail_node(
+        {"messages": [mensagem], "pii_map": {}, "turn_agents": ["router"]}
+    )
+
+    assert resultado["turn_agents"] == ["router", "output_guardrail_failed_closed"]
+    assert isinstance(resultado["messages"][0], RemoveMessage)
+    assert isinstance(resultado["messages"][1], AIMessage)
+    assert "não consegui concluir a revisão" in resultado["messages"][1].content
+    deanonymize.assert_not_called()
