@@ -6,3 +6,5 @@ class GraphState(MessagesState):
     turn_agents: list[str]
     summary: str
     pii_map: dict
+    judge_retries: int
+    judge_status: str
