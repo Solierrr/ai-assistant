@@ -20,7 +20,7 @@ def output_guardrail_node(state: GraphState) -> dict:
         reviewed_response = (
             llm_groq().invoke([HumanMessage(content=formatted_prompt)]).content
         )
-    except Exception:  # noqa: BLE001 — fail-closed: qualquer falha bloqueia
+    except Exception:
         # Falha fechado: se a revisão de compliance não puder rodar, não
         # deixa a resposta não revisada do agente vazar pro usuário.
         workflow_steps = append_turn_agent(state, "output_guardrail_failed_closed")
