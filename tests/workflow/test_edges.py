@@ -2,6 +2,7 @@ import pytest
 
 from src.workflow.edges.routing_edges import (
     decide_post_input_guardrail,
+    decide_post_judge,
     decide_post_router,
 )
 
@@ -33,3 +34,15 @@ def test_decide_post_router_falls_back_to_orchestrator_when_route_was_already_co
         )
         == "orchestrator"
     )
+
+
+def test_decide_post_judge_returns_retry():
+    assert decide_post_judge({"judge_status": "retry"}) == "retry"
+
+
+def test_decide_post_judge_returns_output_guardrail_when_approved():
+    assert decide_post_judge({"judge_status": "approved"}) == "output_guardrail"
+
+
+def test_decide_post_judge_returns_output_guardrail_when_blocked():
+    assert decide_post_judge({"judge_status": "blocked"}) == "output_guardrail"
