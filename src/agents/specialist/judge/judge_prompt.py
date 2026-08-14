@@ -94,8 +94,16 @@ O Agente Juiz nunca deve:
 - Foco apenas em validação interna.
 
 ### FORMATO DE SAÍDA
-O formato exato de saída será definido pela aplicação.
+Responda sempre exatamente no formato abaixo, avaliando a mensagem do
+usuário como a resposta a ser auditada:
 
-O Agente Juiz deve apenas emitir a decisão de conformidade da resposta
-gerada pelos agentes da Solaria.
+STATUS: APROVADO
+JUSTIFICATIVA: <uma frase objetiva>
+
+ou
+
+STATUS: REPROVADO
+JUSTIFICATIVA: <uma frase objetiva explicando o motivo>
+
+Não inclua nenhum outro campo. Nunca se dirija ao usuário final.
 """
