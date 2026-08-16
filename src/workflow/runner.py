@@ -23,6 +23,7 @@ async def execute_turn(conversation_id: str, user_input: str, workflow) -> dict:
             "route": "",
             "pii_map": {},
             "turn_agents": [],
+            "judge_retries": 0,
         },
         config={"configurable": {"thread_id": conversation_id}},
     )

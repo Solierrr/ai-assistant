@@ -1,10 +1,15 @@
 from langgraph.graph import END, StateGraph
 
 from src.memory.session.mongo_checkpointer import create_mongo_checkpointer
-from src.workflow.edges import decide_post_input_guardrail, decide_post_router
+from src.workflow.edges import (
+    decide_post_input_guardrail,
+    decide_post_judge,
+    decide_post_router,
+)
 from src.workflow.nodes.agency_suggester_node import agency_suggester_node
 from src.workflow.nodes.faq_reader_node import faq_reader_node
 from src.workflow.nodes.input_guardrail_node import input_guardrail_node
+from src.workflow.nodes.judge_node import judge_node
 from src.workflow.nodes.orchestrator_node import orchestrator_node
 from src.workflow.nodes.output_guardrail_node import output_guardrail_node
 from src.workflow.nodes.professional_suggester_node import professional_suggester_node
@@ -23,6 +28,7 @@ graph.add_node("professional_suggester", professional_suggester_node)
 graph.add_node("agency_suggester", agency_suggester_node)
 graph.add_node("solar_panel_specialist", solar_panel_specialist_node)
 graph.add_node("orchestrator", orchestrator_node)
+graph.add_node("judge", judge_node)
 graph.add_node("output_guardrail", output_guardrail_node)
 
 graph.set_entry_point("input_guardrail")
@@ -52,7 +58,14 @@ graph.add_edge("faq_reader", "router")
 graph.add_edge("professional_suggester", "router")
 graph.add_edge("agency_suggester", "router")
 graph.add_edge("solar_panel_specialist", "router")
-graph.add_edge("orchestrator", "output_guardrail")
+graph.add_edge("orchestrator", "judge")
+
+graph.add_conditional_edges(
+    "judge",
+    decide_post_judge,
+    {"retry": "orchestrator", "output_guardrail": "output_guardrail"},
+)
+
 graph.add_edge("output_guardrail", END)
 
 memory = create_mongo_checkpointer()
