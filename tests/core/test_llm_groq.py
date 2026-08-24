@@ -1,9 +1,20 @@
+import pytest
+
+from src.core.config.settings import settings
 from src.core.llm.llm_groq import llm_groq
 
 MODELOS_DESCONTINUADOS_PELO_GROQ = {
     "llama-3.3-70b-versatile",
     "llama-3.1-8b-instant",
 }
+
+
+@pytest.fixture(autouse=True)
+def fake_groq_api_key(monkeypatch):
+    """ChatGroq valida a api_key já na construção do client, antes de
+    qualquer chamada de rede. No CI não existe GROQ_API_KEY configurada,
+    então precisamos de uma key falsa só pra passar da validação."""
+    monkeypatch.setattr(settings, "GROQ_API_KEY", "fake-key-for-tests")
 
 
 def test_default_nao_usa_modelo_descontinuado():
