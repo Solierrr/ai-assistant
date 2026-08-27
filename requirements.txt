@@ -6,9 +6,11 @@ langchain-google-genai
 langchain-groq
 pymongo
 pydantic-settings
-python-dotenv
+httpx
 pytest
 pytest-cov
+pytest-asyncio
+respx
 ruff
 fastapi
 uvicorn

@@ -1,6 +1,5 @@
 from pydantic import AliasChoices, Field
-from pydantic_settings import BaseSettings
-from pydantic_settings import SettingsConfigDict
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -10,7 +9,8 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("MONGO_URI", "MONGODB_URI"),
     )
 
-    MONGO_DB: str = "assessor_inteligente"
+    API_MESSENGER_URL: str
+    API_MESSENGER_CLIENT_SECRET: str
 
     GOOGLE_API_KEY: str | None = None
     GROQ_API_KEY: str | None = None
