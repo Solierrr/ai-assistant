@@ -4,14 +4,10 @@ from fastapi import FastAPI
 
 from src.api.routes import chat
 from src.core.config.settings import settings
-from src.infra.database.mongo.indexes.create_indexes import create_indexes
-from src.infra.database.mongo.mongodb_client import MongoDBClient
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await MongoDBClient.connect()
-    await create_indexes()
     yield
 
 
