@@ -4,14 +4,28 @@ from langchain_core.messages import HumanMessage
 
 from src.agents.base.base_memory import log_interaction
 from src.core.guardrails.anonymize import anonymize_text
+from src.infra.api_messenger.client import criar_conversa_chatbot
+
+_conversations_por_thread: dict[str, str] = {}
+
+
+async def _get_or_create_conversation_id(thread_id: str) -> str:
+    """Reaproveita, por thread_id, a conversa já aberta no api-messenger;
+    cria uma nova na primeira mensagem do turno."""
+    conversation_id = _conversations_por_thread.get(thread_id)
+    if conversation_id is None:
+        conversation_id = await criar_conversa_chatbot("lead", {})
+        _conversations_por_thread[thread_id] = conversation_id
+    return conversation_id
 
 
 async def execute_turn(conversation_id: str, user_input: str, workflow) -> dict:
     turn_id = str(uuid4())
     anonymized_user_input, _ = anonymize_text(user_input)
+    api_conversation_id = await _get_or_create_conversation_id(conversation_id)
 
     await log_interaction(
-        conversation_id,
+        api_conversation_id,
         "user",
         anonymized_user_input,
         metadata={"turn_id": turn_id, "content_anonymized": True},
@@ -40,7 +54,7 @@ async def execute_turn(conversation_id: str, user_input: str, workflow) -> dict:
         ),
     }
     await log_interaction(
-        conversation_id,
+        api_conversation_id,
         "assistant",
         anonymized_assistant_response,
         metadata=audit_metadata,
