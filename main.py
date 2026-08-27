@@ -1,18 +1,7 @@
 import asyncio
 from uuid import uuid4
 
-from dotenv import load_dotenv
-
-from src.infra.database.mongo.indexes.create_indexes import create_indexes
-from src.infra.database.mongo.mongodb_client import MongoDBClient
 from src.workflow.runner import execute_turn
-
-load_dotenv()
-
-
-async def startup():
-    await MongoDBClient.connect()
-    await create_indexes()
 
 
 async def run_chat():
@@ -32,12 +21,7 @@ async def run_chat():
                         await asyncio.sleep(1)
                 break
 
-            final_state = await execute_turn(
-                conversation_id,
-                user_input,
-                compiled_app,
-            )
-
+            final_state = await execute_turn(conversation_id, user_input, compiled_app)
             print(f"{final_state['messages'][-1].content}")
 
         except (ConnectionError, TimeoutError, ValueError, RuntimeError) as error:
@@ -45,9 +29,4 @@ async def run_chat():
 
 
 if __name__ == "__main__":
-
-    async def main():
-        await startup()
-        await run_chat()
-
-    asyncio.run(main())
+    asyncio.run(run_chat())
