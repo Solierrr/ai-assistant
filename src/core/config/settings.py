@@ -9,8 +9,8 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("MONGO_URI", "MONGODB_URI"),
     )
 
-    API_MESSENGER_URL: str
-    API_MESSENGER_CLIENT_SECRET: str
+    API_MESSENGER_URL: str | None = None
+    API_MESSENGER_CLIENT_SECRET: str | None = None
 
     GOOGLE_API_KEY: str | None = None
     GROQ_API_KEY: str | None = None
