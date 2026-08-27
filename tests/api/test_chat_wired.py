@@ -8,18 +8,11 @@ from langgraph.checkpoint.memory import InMemorySaver
 
 @contextmanager
 def _client():
-    """TestClient com Mongo mockado — inclusive o checkpointer do grafo, que
-    é construído na hora que `graph.py` é importado (dentro da rota)."""
-    with (
-        patch(
-            "src.infra.database.mongo.mongodb_client.MongoDBClient.connect",
-            new=AsyncMock(),
-        ),
-        patch("src.api.app.create_indexes", new=AsyncMock()),
-        patch(
-            "src.memory.session.mongo_checkpointer.create_mongo_checkpointer",
-            return_value=InMemorySaver(),
-        ),
+    """TestClient com o checkpointer do grafo mockado — ele é construído na
+    hora que `graph.py` é importado (dentro da rota)."""
+    with patch(
+        "src.memory.session.mongo_checkpointer.create_mongo_checkpointer",
+        return_value=InMemorySaver(),
     ):
         from src.api.app import app
 
