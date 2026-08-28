@@ -87,7 +87,7 @@ def test_chat_401_sem_header_authorization():
         response = client.post(
             "/chat", json={"conversation_id": "conv-3", "message": "Oi"}
         )
-    assert response.status_code == 422  # Header(...) obrigatório, FastAPI valida antes de chegar na rota
+    assert response.status_code == 401  # authorization é Header(None) opcional; 401 é levantado na rota
 
 
 def test_chat_401_header_mal_formado():
