@@ -42,8 +42,13 @@ def test_execute_turn_persists_anonymized_request_and_audited_response(monkeypat
     )
     monkeypatch.setattr(runner, "uuid4", Mock(return_value="turn-123"))
 
-    asyncio.run(runner.execute_turn("conversation-1", "texto original", workflow))
+    asyncio.run(
+        runner.execute_turn(
+            "conversation-1", "texto original", workflow, user_token="token-abc"
+        )
+    )
 
+    assert runner.criar_conversa_chatbot.await_args.kwargs["user_token"] == "token-abc"
     assert log_interaction.await_args_list[0].args == (
         "api-conv-1",
         "user",
@@ -89,6 +94,10 @@ def test_execute_turn_reaproveita_conversa_ja_criada_para_a_mesma_thread(monkeyp
         runner, "anonymize_text", Mock(side_effect=[("a", {}), ("b", {})])
     )
 
-    asyncio.run(runner.execute_turn("conversation-1", "texto", workflow))
+    asyncio.run(
+        runner.execute_turn(
+            "conversation-1", "texto", workflow, user_token="token-abc"
+        )
+    )
 
     criar_conversa_chatbot.assert_not_awaited()

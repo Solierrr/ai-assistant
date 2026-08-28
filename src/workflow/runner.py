@@ -9,20 +9,24 @@ from src.infra.api_messenger.client import criar_conversa_chatbot
 _conversations_por_thread: dict[str, str] = {}
 
 
-async def _get_or_create_conversation_id(thread_id: str) -> str:
+async def _get_or_create_conversation_id(thread_id: str, user_token: str) -> str:
     """Reaproveita, por thread_id, a conversa já aberta no api-messenger;
     cria uma nova na primeira mensagem do turno."""
     conversation_id = _conversations_por_thread.get(thread_id)
     if conversation_id is None:
-        conversation_id = await criar_conversa_chatbot("lead", {})
+        conversation_id = await criar_conversa_chatbot("lead", {}, user_token=user_token)
         _conversations_por_thread[thread_id] = conversation_id
     return conversation_id
 
 
-async def execute_turn(conversation_id: str, user_input: str, workflow) -> dict:
+async def execute_turn(
+    conversation_id: str, user_input: str, workflow, user_token: str
+) -> dict:
     turn_id = str(uuid4())
     anonymized_user_input, _ = anonymize_text(user_input)
-    api_conversation_id = await _get_or_create_conversation_id(conversation_id)
+    api_conversation_id = await _get_or_create_conversation_id(
+        conversation_id, user_token
+    )
 
     await log_interaction(
         api_conversation_id,
