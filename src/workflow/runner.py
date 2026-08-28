@@ -14,7 +14,9 @@ async def _get_or_create_conversation_id(thread_id: str, user_token: str) -> str
     cria uma nova na primeira mensagem do turno."""
     conversation_id = _conversations_por_thread.get(thread_id)
     if conversation_id is None:
-        conversation_id = await criar_conversa_chatbot("lead", {}, user_token=user_token)
+        conversation_id = await criar_conversa_chatbot(
+            "lead", {}, user_token=user_token
+        )
         _conversations_por_thread[thread_id] = conversation_id
     return conversation_id
 
