@@ -19,3 +19,4 @@ langchain-text-splitters
 faiss-cpu
 pypdf
 redis
+certifi
