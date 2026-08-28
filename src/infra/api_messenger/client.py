@@ -27,12 +27,17 @@ async def _headers() -> dict:
     return {"Authorization": f"Bearer {_access_token}"}
 
 
-async def criar_conversa_chatbot(user_type: str, user_details: dict) -> str:
+async def criar_conversa_chatbot(user_type: str, user_details: dict, user_token: str) -> str:
+    """Cria a conversa com o JWT do usuário real."""
     async with httpx.AsyncClient() as client:
         resp = await client.post(
             f"{settings.API_MESSENGER_URL}/messaging/conversations/chatbot-conversations",
-            json={"userType": user_type, "userDetails": user_details},
-            headers=await _headers(),
+            json={
+                "userType": user_type,
+                "userDetails": user_details,
+                "environment": settings.ENVIRONMENT,
+            },
+            headers={"Authorization": f"Bearer {user_token}"},
         )
         resp.raise_for_status()
         return resp.json()["id"]
@@ -48,6 +53,7 @@ async def enviar_mensagem_chatbot(
                 "conversationId": conversation_id,
                 "content": content,
                 "metadata": metadata,
+                "environment": settings.ENVIRONMENT,
             },
             headers=await _headers(),
         )
