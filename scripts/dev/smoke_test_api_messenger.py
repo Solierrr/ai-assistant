@@ -9,6 +9,11 @@ configurados no .env ou no ambiente.
 
 import asyncio
 import sys
+from pathlib import Path
+
+# sobe de scripts/dev/ até a raiz do projeto, garante que "src" seja achado
+# mesmo rodando "python scripts\dev\smoke_test_api_messenger.py" direto
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from src.core.config.settings import settings
 from src.infra.api_messenger.client import criar_conversa_chatbot, enviar_mensagem_chatbot
