@@ -17,6 +17,10 @@ class Settings(BaseSettings):
     API_MESSENGER_URL: str | None = None
     API_MESSENGER_CLIENT_SECRET: str | None = None
 
+    ENVIRONMENT: str = "LOCAL" 
+
+    TEST_USER_TOKEN: str | None = None  # só pra uso local via main.py, nunca em produção
+
     GOOGLE_API_KEY: str | None = None
     GROQ_API_KEY: str | None = None
 
