@@ -5,6 +5,8 @@ from fastapi.testclient import TestClient
 from langchain_core.messages import AIMessage
 from langgraph.checkpoint.memory import InMemorySaver
 
+_AUTH_HEADER = {"Authorization": "Bearer jwt-de-teste"}
+
 
 @contextmanager
 def _client():
@@ -37,6 +39,7 @@ def test_chat_calls_execute_turn_and_maps_response(monkeypatch):
         response = client.post(
             "/chat",
             json={"conversation_id": "conv-1", "message": "Preciso de instalador"},
+            headers=_AUTH_HEADER,
         )
 
     assert response.status_code == 200
@@ -51,8 +54,10 @@ def test_chat_calls_execute_turn_and_maps_response(monkeypatch):
 
     mock_execute_turn.assert_awaited_once()
     called_args = mock_execute_turn.call_args.args
+    called_kwargs = mock_execute_turn.call_args.kwargs
     assert called_args[0] == "conv-1"
     assert called_args[1] == "Preciso de instalador"
+    assert called_kwargs["user_token"] == "jwt-de-teste"
 
 
 def test_chat_falls_back_to_turn_agents_when_no_metadata(monkeypatch):
@@ -67,12 +72,32 @@ def test_chat_falls_back_to_turn_agents_when_no_metadata(monkeypatch):
 
     with _client() as client:
         response = client.post(
-            "/chat", json={"conversation_id": "conv-2", "message": "Oi"}
+            "/chat",
+            json={"conversation_id": "conv-2", "message": "Oi"},
+            headers=_AUTH_HEADER,
         )
 
     body = response.json()
     assert body["specialists_used"] == []
     assert body["workflow_steps"] == ["router_direct_response"]
+
+
+def test_chat_401_sem_header_authorization():
+    with _client() as client:
+        response = client.post(
+            "/chat", json={"conversation_id": "conv-3", "message": "Oi"}
+        )
+    assert response.status_code == 401  # authorization é Header(None) opcional; 401 é levantado na rota
+
+
+def test_chat_401_header_mal_formado():
+    with _client() as client:
+        response = client.post(
+            "/chat",
+            json={"conversation_id": "conv-3", "message": "Oi"},
+            headers={"Authorization": "jwt-sem-bearer"},
+        )
+    assert response.status_code == 401
 
 
 def test_app_import_does_not_touch_mongo_at_module_level():
@@ -81,5 +106,5 @@ def test_app_import_does_not_touch_mongo_at_module_level():
 
     import src.api.app as app_module
 
-    importlib.reload(app_module)  # se travasse na conexão, o teste já teria estourado
+    importlib.reload(app_module)
     assert app_module.app is not None
