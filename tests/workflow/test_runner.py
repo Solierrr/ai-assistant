@@ -27,8 +27,10 @@ def test_execute_turn_persists_anonymized_request_and_audited_response(monkeypat
             "turn_agents": ["router", "faq_reader", "orchestrator"],
         }
     )
-    log_interaction = AsyncMock()
-    monkeypatch.setattr(runner, "log_interaction", log_interaction)
+    enviar_mensagem_usuario = AsyncMock()
+    enviar_mensagem_chatbot = AsyncMock()
+    monkeypatch.setattr(runner, "enviar_mensagem_usuario", enviar_mensagem_usuario)
+    monkeypatch.setattr(runner, "enviar_mensagem_chatbot", enviar_mensagem_chatbot)
     monkeypatch.setattr(runner, "_conversations_por_thread", {})
     monkeypatch.setattr(
         runner,
@@ -49,28 +51,23 @@ def test_execute_turn_persists_anonymized_request_and_audited_response(monkeypat
     )
 
     assert runner.criar_conversa_chatbot.await_args.kwargs["user_token"] == "token-abc"
-    assert log_interaction.await_args_list[0].args == (
+    assert enviar_mensagem_usuario.await_args.args == (
         "api-conv-1",
-        "user",
         "texto anonimo",
+        "token-abc",
     )
-    assert log_interaction.await_args_list[0].kwargs["metadata"] == {
-        "turn_id": "turn-123",
-        "content_anonymized": True,
-    }
     assert workflow.ainvoke.await_args.kwargs["config"] == {
         "configurable": {"thread_id": "conversation-1"}
     }
-    assert log_interaction.await_args_list[1].args == (
+    assert enviar_mensagem_chatbot.await_args.args[:2] == (
         "api-conv-1",
-        "assistant",
         "resposta anonima",
     )
-    assert log_interaction.await_args_list[1].kwargs["metadata"] == {
-        "turn_id": "turn-123",
-        "content_anonymized": True,
-        "specialists_used": ["faq_reader"],
-        "workflow_steps": [
+    assert enviar_mensagem_chatbot.await_args.args[2] == {
+        "turnId": "turn-123",
+        "contentAnonymized": True,
+        "specialistsUsed": ["faq_reader"],
+        "workflowSteps": [
             "router",
             "faq_reader",
             "orchestrator",
@@ -84,7 +81,8 @@ def test_execute_turn_reaproveita_conversa_ja_criada_para_a_mesma_thread(monkeyp
     workflow.ainvoke = AsyncMock(
         return_value={"messages": [AIMessage(content="oi", additional_kwargs={})]}
     )
-    monkeypatch.setattr(runner, "log_interaction", AsyncMock())
+    monkeypatch.setattr(runner, "enviar_mensagem_usuario", AsyncMock())
+    monkeypatch.setattr(runner, "enviar_mensagem_chatbot", AsyncMock())
     monkeypatch.setattr(
         runner, "_conversations_por_thread", {"conversation-1": "api-conv-1"}
     )

@@ -65,8 +65,8 @@ async def test_reaproveita_token_depois(monkeypatch):
         return_value=Response(200, json={})
     )
 
-    await client.enviar_mensagem_chatbot("conv-1", "ola", {"turn_id": "t-1"})
-    await client.enviar_mensagem_chatbot("conv-1", "de novo", {"turn_id": "t-2"})
+    await client.enviar_mensagem_chatbot("conv-1", "ola", {"turnId": "t-1"})
+    await client.enviar_mensagem_chatbot("conv-1", "de novo", {"turnId": "t-2"})
 
     assert not auth_route.called
     assert mensagem_route.call_count == 2
@@ -77,7 +77,7 @@ async def test_reaproveita_token_depois(monkeypatch):
 
 
 @respx.mock
-async def test_enviar_mensagem_manda_environment_no_corpo(monkeypatch):
+async def test_enviar_mensagem_chatbot_manda_environment_e_metadata_camel_case(monkeypatch):
     monkeypatch.setattr(client, "_access_token", "token-existente")
     monkeypatch.setattr(client, "_refresh_token", "refresh-existente")
     monkeypatch.setattr(client.settings, "API_MESSENGER_URL", "http://api-messenger")
@@ -87,9 +87,41 @@ async def test_enviar_mensagem_manda_environment_no_corpo(monkeypatch):
         return_value=Response(200, json={})
     )
 
-    await client.enviar_mensagem_chatbot("conv-1", "ola", {"turn_id": "t-1"})
+    metadata = {
+        "turnId": "t-1",
+        "contentAnonymized": True,
+        "specialistsUsed": [],
+        "workflowSteps": [],
+    }
+    await client.enviar_mensagem_chatbot("conv-1", "ola", metadata)
 
     import json
 
     corpo = json.loads(mensagem_route.calls.last.request.content)
     assert corpo["environment"] == "PROD"
+    assert corpo["metadata"] == metadata
+
+
+@respx.mock
+async def test_enviar_mensagem_usuario_usa_endpoint_e_jwt_do_usuario(monkeypatch):
+    monkeypatch.setattr(client.settings, "API_MESSENGER_URL", "http://api-messenger")
+    monkeypatch.setattr(client.settings, "ENVIRONMENT", "QA")
+
+    mensagem_route = respx.post("http://api-messenger/messaging/messages").mock(
+        return_value=Response(201, json={})
+    )
+
+    await client.enviar_mensagem_usuario("conv-1", "ola", "token-do-usuario")
+
+    import json
+
+    request = mensagem_route.calls.last.request
+    corpo = json.loads(request.content)
+    assert request.headers["Authorization"] == "Bearer token-do-usuario"
+    assert corpo == {
+        "conversationId": "conv-1",
+        "messageType": "USER_TO_CHATBOT",
+        "role": "user",
+        "content": "ola",
+        "environment": "QA",
+    }
