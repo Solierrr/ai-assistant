@@ -2,7 +2,6 @@ from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
-
     MONGO_URI: str = Field(
         "mongodb://localhost:27017",
         validation_alias=AliasChoices("MONGO_URI", "MONGODB_URI"),
@@ -13,13 +12,17 @@ class Settings(BaseSettings):
     UPSTASH_REDIS_USERNAME: str = "default"
     UPSTASH_REDIS_PASSWORD: str | None = None
 
-
     API_MESSENGER_URL: str | None = None
     API_MESSENGER_CLIENT_SECRET: str | None = None
 
-    ENVIRONMENT: str = "LOCAL" 
+    ENVIRONMENT: str = "LOCAL"
 
-    TEST_USER_TOKEN: str | None = None  # só pra uso local via main.py, nunca em produção
+    TEST_USER_TOKEN: str | None = (
+        None  # só pra uso local via main.py, nunca em produção
+    )
+
+    MCP_URL: str = "http://localhost:8001/mcp"
+    MCP_API_KEY: str | None = None
 
     GOOGLE_API_KEY: str | None = None
     GROQ_API_KEY: str | None = None
