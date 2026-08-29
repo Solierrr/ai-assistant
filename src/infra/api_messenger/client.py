@@ -46,6 +46,7 @@ async def criar_conversa_chatbot(user_type: str, user_details: dict, user_token:
 async def enviar_mensagem_chatbot(
     conversation_id: str, content: str, metadata: dict | None = None
 ) -> None:
+    """Registra a resposta do assistente com o token de serviço."""
     async with httpx.AsyncClient() as client:
         resp = await client.post(
             f"{settings.API_MESSENGER_URL}/internal/messages",
@@ -56,5 +57,24 @@ async def enviar_mensagem_chatbot(
                 "environment": settings.ENVIRONMENT,
             },
             headers=await _headers(),
+        )
+        resp.raise_for_status()
+
+
+async def enviar_mensagem_usuario(
+    conversation_id: str, content: str, user_token: str
+) -> None:
+    """Registra a mensagem do usuário usando seu próprio JWT."""
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(
+            f"{settings.API_MESSENGER_URL}/messaging/messages",
+            json={
+                "conversationId": conversation_id,
+                "messageType": "USER_TO_CHATBOT",
+                "role": "user",
+                "content": content,
+                "environment": settings.ENVIRONMENT,
+            },
+            headers={"Authorization": f"Bearer {user_token}"},
         )
         resp.raise_for_status()
