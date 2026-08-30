@@ -18,7 +18,10 @@ class Settings(BaseSettings):
     AGENT_STREAM_CHATBOT: str = "agent:stream:chatbot"
     AGENT_STREAM_MAXLEN: int = Field(default=10_000, gt=0)
     AGENT_STREAM_GROUP: str = "chatbot-agents"
+
     AGENT_CONSUMER_PREFIX: str = "chatbot-consumer"
+    AGENT_RESULT_PREFIX: str = "agent:result:chatbot"
+    AGENT_RESULT_TTL_SECONDS: int = Field(default=900, gt=0) # Padrão de 15 minutos por evento
 
     GOOGLE_API_KEY: str | None = None
     GROQ_API_KEY: str | None = None
