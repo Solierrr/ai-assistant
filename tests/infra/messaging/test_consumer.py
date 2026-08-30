@@ -358,3 +358,36 @@ async def test_run_consumer_respeita_intervalo_entre_claims(monkeypatch):
 
     recover_pending_messages.assert_awaited_once_with("consumer-1")
     assert redis.xreadgroup.await_count == 2
+
+
+async def test_run_consumer_repete_leitura_apos_falha_do_redis(monkeypatch):
+    stop_event = asyncio.Event()
+    redis = Mock()
+    read_count = 0
+
+    async def read_with_retry(**kwargs):
+        nonlocal read_count
+        read_count += 1
+        if read_count == 1:
+            raise ConnectionError("Redis indisponível")
+        stop_event.set()
+        return []
+
+    redis.xreadgroup = AsyncMock(side_effect=read_with_retry)
+    sleep = AsyncMock()
+    logger = Mock()
+    monkeypatch.setattr(consumer, "get_redis_client", Mock(return_value=redis))
+    monkeypatch.setattr(consumer, "ensure_consumer_group", AsyncMock())
+    monkeypatch.setattr(consumer, "recover_pending_messages", AsyncMock())
+    monkeypatch.setattr(consumer.asyncio, "sleep", sleep)
+    monkeypatch.setattr(consumer, "logger", logger)
+
+    await consumer.run_consumer(stop_event, consumer_name="consumer-1")
+
+    assert redis.xreadgroup.await_count == 2
+    sleep.assert_awaited_once_with(
+        consumer.settings.AGENT_CONSUMER_RETRY_DELAY_MS / 1_000
+    )
+    logger.exception.assert_called_once_with(
+        "Falha ao ler mensagens do Redis Stream"
+    )

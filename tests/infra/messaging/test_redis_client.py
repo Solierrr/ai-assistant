@@ -6,8 +6,18 @@ from src.infra.messaging import redis_client
 
 
 @pytest.fixture(autouse=True)
-def reset_redis_client():
+def reset_redis_client(monkeypatch):
     redis_client._redis_client = None
+    monkeypatch.setattr(
+        redis_client.settings,
+        "UPSTASH_REDIS_HOST",
+        "redis.test",
+    )
+    monkeypatch.setattr(
+        redis_client.settings,
+        "UPSTASH_REDIS_PASSWORD",
+        "token",
+    )
     yield
     redis_client._redis_client = None
 
@@ -86,3 +96,17 @@ async def test_connect_redis_fecha_cliente_quando_ping_falha(monkeypatch):
 
     client.aclose.assert_awaited_once()
     assert redis_client._redis_client is None
+
+
+async def test_connect_redis_falha_quando_credenciais_nao_estao_configuradas(
+    monkeypatch,
+):
+    redis_factory = Mock()
+    monkeypatch.setattr(redis_client.settings, "UPSTASH_REDIS_HOST", None)
+    monkeypatch.setattr(redis_client.settings, "UPSTASH_REDIS_PASSWORD", None)
+    monkeypatch.setattr(redis_client, "Redis", redis_factory)
+
+    with pytest.raises(RuntimeError, match="Credenciais do Upstash Redis"):
+        await redis_client.connect_redis()
+
+    redis_factory.assert_not_called()
