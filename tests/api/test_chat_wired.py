@@ -1,25 +1,24 @@
 from contextlib import contextmanager
 from unittest.mock import AsyncMock, patch
+from uuid import UUID
 
+import pytest
 from fastapi.testclient import TestClient
-from langchain_core.messages import AIMessage
-from langgraph.checkpoint.memory import InMemorySaver
 
 
 @contextmanager
 def _client():
-    """TestClient com Mongo mockado — inclusive o checkpointer do grafo, que
-    é construído na hora que `graph.py` é importado (dentro da rota)."""
+    """Cria um cliente da API sem acessar o MongoDB real."""
     with (
         patch(
             "src.infra.database.mongo.mongodb_client.MongoDBClient.connect",
             new=AsyncMock(),
         ),
         patch("src.api.app.create_indexes", new=AsyncMock()),
-        patch(
-            "src.memory.session.mongo_checkpointer.create_mongo_checkpointer",
-            return_value=InMemorySaver(),
-        ),
+        patch("src.api.app.connect_redis", new=AsyncMock()),
+        patch("src.api.app.ensure_consumer_group", new=AsyncMock()),
+        patch("src.api.app.run_consumer", new=AsyncMock()),
+        patch("src.api.app.close_redis", new=AsyncMock()),
     ):
         from src.api.app import app
 
@@ -27,18 +26,19 @@ def _client():
             yield client
 
 
-def test_chat_calls_execute_turn_and_maps_response(monkeypatch):
-    fake_message = AIMessage(
-        content="Recomendo um instalador na região.",
-        additional_kwargs={
-            "specialists_used": ["professional_suggester"],
-            "workflow_steps": ["router", "professional_suggester", "orchestrator"],
-        },
+def test_chat_publica_evento_e_retorna_accepted(monkeypatch):
+    save_event_result = AsyncMock()
+    publish_event = AsyncMock(return_value="1700000000000-0")
+    delete_event_result = AsyncMock()
+    monkeypatch.setattr(
+        "src.api.routes.chat.save_event_result",
+        save_event_result,
     )
-    fake_final_state = {"messages": [fake_message]}
-
-    mock_execute_turn = AsyncMock(return_value=fake_final_state)
-    monkeypatch.setattr("src.api.routes.chat.execute_turn", mock_execute_turn)
+    monkeypatch.setattr("src.api.routes.chat.publish_event", publish_event)
+    monkeypatch.setattr(
+        "src.api.routes.chat.delete_event_result",
+        delete_event_result,
+    )
 
     with _client() as client:
         response = client.post(
@@ -46,40 +46,109 @@ def test_chat_calls_execute_turn_and_maps_response(monkeypatch):
             json={"conversation_id": "conv-1", "message": "Preciso de instalador"},
         )
 
-    assert response.status_code == 200
+    assert response.status_code == 202
     body = response.json()
-    assert body["response"] == "Recomendo um instalador na região."
-    assert body["specialists_used"] == ["professional_suggester"]
-    assert body["workflow_steps"] == [
-        "router",
-        "professional_suggester",
-        "orchestrator",
-    ]
-
-    mock_execute_turn.assert_awaited_once()
-    called_args = mock_execute_turn.call_args.args
-    assert called_args[0] == "conv-1"
-    assert called_args[1] == "Preciso de instalador"
-
-
-def test_chat_falls_back_to_turn_agents_when_no_metadata(monkeypatch):
-    fake_message = AIMessage(content="Resposta direta.", additional_kwargs={})
-    fake_final_state = {
-        "messages": [fake_message],
-        "turn_agents": ["router_direct_response"],
+    event_id = UUID(body["event_id"])
+    assert body["status"] == "queued"
+    saved_event_id, saved_result = save_event_result.await_args.args
+    assert saved_event_id == event_id
+    assert saved_result == {
+        "status": "queued",
+        "conversation_id": "conv-1",
     }
+    published_event = publish_event.await_args.args[0]
+    assert published_event.event_id == event_id
+    assert published_event.event_type == "chatbot.message.received"
+    assert published_event.payload == {
+        "conversation_id": "conv-1",
+        "message": "Preciso de instalador",
+    }
+    delete_event_result.assert_not_awaited()
 
-    mock_execute_turn = AsyncMock(return_value=fake_final_state)
-    monkeypatch.setattr("src.api.routes.chat.execute_turn", mock_execute_turn)
 
-    with _client() as client:
-        response = client.post(
-            "/chat", json={"conversation_id": "conv-2", "message": "Oi"}
+def test_chat_remove_resultado_temporario_quando_publicacao_falha(monkeypatch):
+    save_event_result = AsyncMock()
+    publish_event = AsyncMock(side_effect=ConnectionError("Redis indisponível"))
+    delete_event_result = AsyncMock()
+    monkeypatch.setattr(
+        "src.api.routes.chat.save_event_result",
+        save_event_result,
+    )
+    monkeypatch.setattr("src.api.routes.chat.publish_event", publish_event)
+    monkeypatch.setattr(
+        "src.api.routes.chat.delete_event_result",
+        delete_event_result,
+    )
+
+    with pytest.raises(ConnectionError, match="Redis indisponível"), _client() as client:
+        client.post(
+            "/chat",
+            json={"conversation_id": "conv-1", "message": "Olá"},
         )
 
+    event_id = save_event_result.await_args.args[0]
+    delete_event_result.assert_awaited_once_with(event_id)
+
+
+def test_chat_retorna_resultado_concluido(monkeypatch):
+    event_id = UUID("550e8400-e29b-41d4-a716-446655440000")
+    get_event_result = AsyncMock(
+        return_value={
+            "event_id": str(event_id),
+            "status": "completed",
+            "conversation_id": "conv-1",
+            "response": "Resposta final",
+            "specialists_used": ["faq_reader"],
+            "workflow_steps": ["router", "faq_reader", "orchestrator"],
+        }
+    )
+    monkeypatch.setattr(
+        "src.api.routes.chat.get_event_result",
+        get_event_result,
+    )
+
+    with _client() as client:
+        response = client.get(f"/chat/{event_id}")
+
+    assert response.status_code == 200
     body = response.json()
-    assert body["specialists_used"] == []
-    assert body["workflow_steps"] == ["router_direct_response"]
+    assert body == {
+        "event_id": str(event_id),
+        "status": "completed",
+        "conversation_id": "conv-1",
+        "response": "Resposta final",
+        "specialists_used": ["faq_reader"],
+        "workflow_steps": ["router", "faq_reader", "orchestrator"],
+    }
+    get_event_result.assert_awaited_once_with(event_id)
+
+
+def test_chat_retorna_404_quando_evento_nao_existe(monkeypatch):
+    event_id = UUID("550e8400-e29b-41d4-a716-446655440000")
+    monkeypatch.setattr(
+        "src.api.routes.chat.get_event_result",
+        AsyncMock(return_value=None),
+    )
+
+    with _client() as client:
+        response = client.get(f"/chat/{event_id}")
+
+    assert response.status_code == 404
+    assert response.json() == {
+        "detail": "Evento não encontrado ou expirado."
+    }
+
+
+def test_chat_routes_expose_descriptions_in_openapi():
+    with _client() as client:
+        openapi = client.get("/openapi.json").json()
+
+    post_operation = openapi["paths"]["/chat"]["post"]
+    get_operation = openapi["paths"]["/chat/{event_id}"]["get"]
+    assert post_operation["summary"] == "Enviar mensagem ao chatbot"
+    assert "Enfileira uma mensagem" in post_operation["description"]
+    assert get_operation["summary"] == "Consultar processamento do chatbot"
+    assert "resultado temporário" in get_operation["description"]
 
 
 def test_app_import_does_not_touch_mongo_at_module_level():

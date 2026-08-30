@@ -8,22 +8,27 @@ _redis_client: Redis | None = None
 async def connect_redis() -> Redis:  # Se a conexão funcionar, retorna um objeto Redis
     global _redis_client  # Declarada como private, mas muda para global para conseguir alterar seu valor
 
-    if _redis_client is None:  # Se não houver um client Redis
-        client = Redis(
-            host=settings.UPSTASH_REDIS_HOST,
-            port=settings.UPSTASH_REDIS_PORT,
-            username=settings.UPSTASH_REDIS_USERNAME,
-            password=settings.UPSTASH_REDIS_PASSWORD,
-            ssl=True,
-            decode_responses=True,
-        )
+    if _redis_client is not None:
+        return _redis_client
 
-        try:
-            await client.ping()  # Só concluirá a conexão caso o ping com o banco Redis funcionar (deve retornar "PONG")
-        except Exception:
-            await client.aclose()  # Se der errado, fecha a conexão na mesma hora
-            raise
-        _redis_client = client
+    if not settings.UPSTASH_REDIS_HOST or not settings.UPSTASH_REDIS_PASSWORD:
+        raise RuntimeError("Credenciais do Upstash Redis não configuradas.")
+
+    client = Redis(
+        host=settings.UPSTASH_REDIS_HOST,
+        port=settings.UPSTASH_REDIS_PORT,
+        username=settings.UPSTASH_REDIS_USERNAME,
+        password=settings.UPSTASH_REDIS_PASSWORD,
+        ssl=True,
+        decode_responses=True,
+    )
+
+    try:
+        await client.ping()  # Só concluirá a conexão caso o ping com o banco Redis funcionar (deve retornar "PONG")
+    except Exception:
+        await client.aclose()  # Se der errado, fecha a conexão na mesma hora
+        raise
+    _redis_client = client
     return _redis_client
 
 

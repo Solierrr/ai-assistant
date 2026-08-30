@@ -6,6 +6,8 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
 
+CHATBOT_MESSAGE_RECEIVED = "chatbot.message.received"
+
 
 class AgentEvent(BaseModel):
     event_id: UUID = Field(default_factory=uuid4)
