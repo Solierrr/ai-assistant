@@ -1,6 +1,9 @@
 import asyncio
+from unittest.mock import Mock
 
+from src.infra.database import mongodb_sync_client
 from src.infra.database.mongo import mongodb_client as mongodb_client_module
+from src.memory.session import mongo_checkpointer
 
 
 class FakeAsyncMongoClient:
@@ -46,3 +49,45 @@ def test_get_database_returns_current_database():
     mongodb_client_module.MongoDBClient.database = database
 
     assert mongodb_client_module.MongoDBClient.get_database() is database
+
+
+def test_sync_client_uses_configured_mongo_uri(monkeypatch):
+    client = object()
+    mongo_client = Mock(return_value=client)
+    monkeypatch.setattr(mongodb_sync_client, "MongoClient", mongo_client)
+    monkeypatch.setattr(
+        mongodb_sync_client.settings,
+        "MONGO_URI",
+        "mongodb://configured-host:27017",
+    )
+
+    result = mongodb_sync_client.get_mongodb_client()
+
+    assert result is client
+    mongo_client.assert_called_once_with("mongodb://configured-host:27017")
+
+
+def test_checkpointer_uses_configured_database(monkeypatch):
+    client = object()
+    saver = object()
+    mongo_saver = Mock(return_value=saver)
+    monkeypatch.setattr(
+        mongo_checkpointer,
+        "get_mongodb_client",
+        Mock(return_value=client),
+    )
+    monkeypatch.setattr(mongo_checkpointer, "MongoDBSaver", mongo_saver)
+    monkeypatch.setattr(
+        mongo_checkpointer.settings,
+        "MONGO_DB",
+        "configured_database",
+    )
+
+    result = mongo_checkpointer.create_mongo_checkpointer()
+
+    assert result is saver
+    mongo_saver.assert_called_once_with(
+        client=client,
+        db_name="configured_database",
+        collection_name="checkpoints_conversas",
+    )
