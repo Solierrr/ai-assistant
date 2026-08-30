@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     AGENT_STREAM_GROUP: str = "chatbot-agents"
 
     AGENT_CONSUMER_PREFIX: str = "chatbot-consumer"
+    AGENT_CONSUMER_BLOCK_MS: int = Field(default=5_000, gt=0)
+    AGENT_CONSUMER_BATCH_SIZE: int = Field(default=1, gt=0)
+    AGENT_CONSUMER_CLAIM_IDLE_MS: int = Field(default=60_000, gt=0)
+    
     AGENT_RESULT_PREFIX: str = "agent:result:chatbot"
     AGENT_RESULT_TTL_SECONDS: int = Field(default=900, gt=0) # Padrão de 15 minutos por evento
 
