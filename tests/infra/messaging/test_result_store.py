@@ -39,6 +39,7 @@ async def test_save_event_result_salva_json_com_ttl(monkeypatch):
         "message": "Pergunta recebida",
         "event_id": str(event_id),
     }
+    assert ": " not in call["value"]
 
 
 async def test_save_event_result_preserva_caracteres_unicode(monkeypatch):

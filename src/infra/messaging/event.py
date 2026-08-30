@@ -28,10 +28,12 @@ class AgentEvent(BaseModel):
             "payload": json.dumps(
                 data["payload"],
                 ensure_ascii=False,
+                separators=(",", ":"),
             ),
             "metadata": json.dumps(
                 data["metadata"],
                 ensure_ascii=False,
+                separators=(",", ":"),
             ),
         }
 

@@ -1,6 +1,8 @@
 from unittest.mock import AsyncMock, Mock
 
 import pytest
+from redis.asyncio.retry import Retry
+from redis.backoff import NoBackoff
 
 from src.infra.messaging import redis_client
 
@@ -42,7 +44,27 @@ async def test_connect_redis_cria_cliente_e_executa_ping(monkeypatch):
         password=redis_client.settings.UPSTASH_REDIS_PASSWORD,
         ssl=True,
         decode_responses=True,
+        socket_timeout=5.0,
+        socket_connect_timeout=5.0,
+        max_connections=10,
+        retry=Retry(NoBackoff(), 0),
     )
+
+
+def test_create_redis_client_aceita_timeout_para_leitura_bloqueante(monkeypatch):
+    redis_factory = Mock(return_value=Mock())
+    monkeypatch.setattr(redis_client, "Redis", redis_factory)
+
+    redis_client.create_redis_client(
+        socket_timeout_seconds=65.0,
+        max_connections=1,
+    )
+
+    call = redis_factory.call_args.kwargs
+    assert call["socket_timeout"] == 65.0
+    assert call["socket_connect_timeout"] == 5.0
+    assert call["max_connections"] == 1
+    assert call["retry"] == Retry(NoBackoff(), 0)
 
 
 async def test_connect_redis_reutiliza_cliente_existente(monkeypatch):
