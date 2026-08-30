@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, Mock
 
 from langchain_core.messages import AIMessage
 
-import src.workflow.runner as runner
+from src.workflow import runner
 
 
 def test_execute_turn_persists_anonymized_request_and_audited_response(monkeypatch):
@@ -66,3 +66,37 @@ def test_execute_turn_persists_anonymized_request_and_audited_response(monkeypat
             "output_guardrail",
         ],
     }
+
+
+def test_execute_turn_includes_event_id_in_audit_metadata(monkeypatch):
+    workflow = Mock()
+    workflow.ainvoke = AsyncMock(
+        return_value={
+            "messages": [AIMessage(content="Resposta final")],
+            "turn_agents": [],
+        }
+    )
+    log_interaction = AsyncMock()
+    monkeypatch.setattr(runner, "log_interaction", log_interaction)
+    monkeypatch.setattr(
+        runner,
+        "anonymize_text",
+        Mock(side_effect=[("texto anonimo", {}), ("resposta anonima", {})]),
+    )
+    monkeypatch.setattr(runner, "uuid4", Mock(return_value="turn-123"))
+
+    asyncio.run(
+        runner.execute_turn(
+            "conversation-1",
+            "texto original",
+            workflow,
+            event_id="event-123",
+        )
+    )
+
+    assert log_interaction.await_args_list[0].kwargs["metadata"]["event_id"] == (
+        "event-123"
+    )
+    assert log_interaction.await_args_list[1].kwargs["metadata"]["event_id"] == (
+        "event-123"
+    )
