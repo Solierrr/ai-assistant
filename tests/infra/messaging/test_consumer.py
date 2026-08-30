@@ -166,6 +166,35 @@ async def test_process_stream_message_nao_confirma_quando_handler_falha(
     redis.xack.assert_not_awaited()
 
 
+async def test_recover_pending_messages_reivindica_e_processa_pendentes(
+    monkeypatch,
+):
+    pending_messages = [("1700000000000-0", {"event_id": "event-123"})]
+    redis = Mock()
+    redis.xautoclaim = AsyncMock(
+        return_value=["0-0", pending_messages, []],
+    )
+    process_stream_messages = AsyncMock()
+    monkeypatch.setattr(consumer, "get_redis_client", Mock(return_value=redis))
+    monkeypatch.setattr(
+        consumer,
+        "process_stream_messages",
+        process_stream_messages,
+    )
+
+    await consumer.recover_pending_messages("consumer-1")
+
+    redis.xautoclaim.assert_awaited_once_with(
+        name=consumer.settings.AGENT_STREAM_CHATBOT,
+        groupname=consumer.settings.AGENT_STREAM_GROUP,
+        consumername="consumer-1",
+        min_idle_time=consumer.settings.AGENT_CONSUMER_CLAIM_IDLE_MS,
+        start_id="0-0",
+        count=consumer.settings.AGENT_CONSUMER_BATCH_SIZE,
+    )
+    process_stream_messages.assert_awaited_once_with(pending_messages)
+
+
 async def test_run_consumer_le_mensagens_novas_do_grupo(monkeypatch):
     stop_event = asyncio.Event()
     fields = {"event_id": "event-123"}
@@ -183,6 +212,7 @@ async def test_run_consumer_le_mensagens_novas_do_grupo(monkeypatch):
     redis.xreadgroup = AsyncMock(side_effect=read_once)
     process_stream_message = AsyncMock()
     ensure_consumer_group = AsyncMock()
+    recover_pending_messages = AsyncMock()
     monkeypatch.setattr(consumer, "get_redis_client", Mock(return_value=redis))
     monkeypatch.setattr(
         consumer,
@@ -194,10 +224,16 @@ async def test_run_consumer_le_mensagens_novas_do_grupo(monkeypatch):
         "process_stream_message",
         process_stream_message,
     )
+    monkeypatch.setattr(
+        consumer,
+        "recover_pending_messages",
+        recover_pending_messages,
+    )
 
     await consumer.run_consumer(stop_event, consumer_name="consumer-1")
 
     ensure_consumer_group.assert_awaited_once_with()
+    recover_pending_messages.assert_awaited_once_with("consumer-1")
     redis.xreadgroup.assert_awaited_once_with(
         groupname=consumer.settings.AGENT_STREAM_GROUP,
         consumername="consumer-1",
@@ -229,6 +265,7 @@ async def test_run_consumer_registra_falha_e_mantem_execucao(monkeypatch):
         "process_stream_message",
         process_stream_message,
     )
+    monkeypatch.setattr(consumer, "recover_pending_messages", AsyncMock())
     monkeypatch.setattr(consumer, "logger", logger)
 
     await consumer.run_consumer(stop_event, consumer_name="consumer-1")
@@ -252,6 +289,72 @@ async def test_run_consumer_propaga_cancelamento(monkeypatch):
         "process_stream_message",
         AsyncMock(side_effect=asyncio.CancelledError),
     )
+    monkeypatch.setattr(consumer, "recover_pending_messages", AsyncMock())
 
     with pytest.raises(asyncio.CancelledError):
         await consumer.run_consumer(stop_event, consumer_name="consumer-1")
+
+
+async def test_run_consumer_registra_falha_do_claim_e_continua_leitura(
+    monkeypatch,
+):
+    stop_event = asyncio.Event()
+    redis = Mock()
+
+    async def read_once(**kwargs):
+        stop_event.set()
+        return []
+
+    redis.xreadgroup = AsyncMock(side_effect=read_once)
+    logger = Mock()
+    recover_pending_messages = AsyncMock(
+        side_effect=ConnectionError("Redis indisponível"),
+    )
+    monkeypatch.setattr(consumer, "get_redis_client", Mock(return_value=redis))
+    monkeypatch.setattr(consumer, "ensure_consumer_group", AsyncMock())
+    monkeypatch.setattr(
+        consumer,
+        "recover_pending_messages",
+        recover_pending_messages,
+    )
+    monkeypatch.setattr(consumer, "logger", logger)
+
+    await consumer.run_consumer(stop_event, consumer_name="consumer-1")
+
+    logger.exception.assert_called_once_with(
+        "Falha ao recuperar mensagens pendentes"
+    )
+    redis.xreadgroup.assert_awaited_once()
+
+
+async def test_run_consumer_respeita_intervalo_entre_claims(monkeypatch):
+    stop_event = asyncio.Event()
+    redis = Mock()
+    read_count = 0
+
+    async def read_twice(**kwargs):
+        nonlocal read_count
+        read_count += 1
+        if read_count == 2:
+            stop_event.set()
+        return []
+
+    redis.xreadgroup = AsyncMock(side_effect=read_twice)
+    recover_pending_messages = AsyncMock()
+    monkeypatch.setattr(consumer, "get_redis_client", Mock(return_value=redis))
+    monkeypatch.setattr(consumer, "ensure_consumer_group", AsyncMock())
+    monkeypatch.setattr(
+        consumer,
+        "recover_pending_messages",
+        recover_pending_messages,
+    )
+    monkeypatch.setattr(
+        consumer,
+        "monotonic",
+        Mock(side_effect=[100.0, 100.0, 101.0]),
+    )
+
+    await consumer.run_consumer(stop_event, consumer_name="consumer-1")
+
+    recover_pending_messages.assert_awaited_once_with("consumer-1")
+    assert redis.xreadgroup.await_count == 2
