@@ -50,6 +50,7 @@ def test_to_stream_fields_serializa_todos_os_valores_como_texto():
     assert json.loads(fields["payload"]) == event.payload
     assert json.loads(fields["metadata"]) == event.metadata
     assert "Olá" in fields["payload"]
+    assert ": " not in fields["payload"]
 
 
 def test_from_stream_fields_reconstroi_evento_original():
