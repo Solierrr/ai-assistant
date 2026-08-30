@@ -115,13 +115,22 @@ async def run_consumer(
             except Exception:
                 logger.exception("Falha ao recuperar mensagens pendentes")
 
-        messages = await redis.xreadgroup(
-            groupname=settings.AGENT_STREAM_GROUP,
-            consumername=name,
-            streams={settings.AGENT_STREAM_CHATBOT: ">"},
-            count=settings.AGENT_CONSUMER_BATCH_SIZE,
-            block=settings.AGENT_CONSUMER_BLOCK_MS,
-        )
+        try:
+            messages = await redis.xreadgroup(
+                groupname=settings.AGENT_STREAM_GROUP,
+                consumername=name,
+                streams={settings.AGENT_STREAM_CHATBOT: ">"},
+                count=settings.AGENT_CONSUMER_BATCH_SIZE,
+                block=settings.AGENT_CONSUMER_BLOCK_MS,
+            )
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("Falha ao ler mensagens do Redis Stream")
+            await asyncio.sleep(
+                settings.AGENT_CONSUMER_RETRY_DELAY_MS / 1_000
+            )
+            continue
 
         for _, stream_messages in messages:
             await process_stream_messages(stream_messages)
