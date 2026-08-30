@@ -17,6 +17,8 @@ class Settings(BaseSettings):
 
     AGENT_STREAM_CHATBOT: str = "agent:stream:chatbot"
     AGENT_STREAM_MAXLEN: int = Field(default=10_000, gt=0)
+    AGENT_STREAM_GROUP: str = "chatbot-agents"
+    AGENT_CONSUMER_PREFIX: str = "chatbot-consumer"
 
     GOOGLE_API_KEY: str | None = None
     GROQ_API_KEY: str | None = None
