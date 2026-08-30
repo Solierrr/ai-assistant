@@ -1,9 +1,7 @@
 from typing import Any
 
-from src.infra.messaging.event import AgentEvent
+from src.infra.messaging.event import CHATBOT_MESSAGE_RECEIVED, AgentEvent
 from src.workflow.runner import execute_turn
-
-CHATBOT_MESSAGE_RECEIVED = "chatbot.message.received"
 
 
 def get_required_payload_text(event: AgentEvent, field: str) -> str:
