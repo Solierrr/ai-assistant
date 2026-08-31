@@ -173,6 +173,100 @@ async def test_process_stream_message_nao_confirma_quando_handler_falha(
     redis.xack.assert_not_awaited()
 
 
+async def test_get_delivery_count_retorna_contador_do_grupo(monkeypatch):
+    redis = Mock()
+    redis.xpending_range = AsyncMock(
+        return_value=[
+            {
+                "message_id": "1700000000000-0",
+                "consumer": "consumer-1",
+                "time_since_delivered": 1000,
+                "times_delivered": 2,
+            }
+        ]
+    )
+    monkeypatch.setattr(consumer, "get_redis_client", Mock(return_value=redis))
+
+    attempts = await consumer.get_delivery_count("1700000000000-0")
+
+    assert attempts == 2
+    redis.xpending_range.assert_awaited_once_with(
+        name=consumer.settings.AGENT_STREAM_CHATBOT,
+        groupname=consumer.settings.AGENT_STREAM_GROUP,
+        min="1700000000000-0",
+        max="1700000000000-0",
+        count=1,
+    )
+
+
+async def test_handle_processing_failure_mantem_mensagem_para_retry(monkeypatch):
+    redis = Mock()
+    redis.xack = AsyncMock()
+    redis.xdel = AsyncMock()
+    save_event_result = AsyncMock()
+    monkeypatch.setattr(consumer, "get_redis_client", Mock(return_value=redis))
+    monkeypatch.setattr(
+        consumer,
+        "get_delivery_count",
+        AsyncMock(return_value=2),
+    )
+    monkeypatch.setattr(consumer, "save_event_result", save_event_result)
+
+    await consumer.handle_processing_failure(
+        "1700000000000-0",
+        {"event_id": "event-123"},
+    )
+
+    save_event_result.assert_awaited_once_with(
+        "event-123",
+        {
+            "status": "retrying",
+            "attempts": 2,
+            "max_attempts": consumer.settings.AGENT_CONSUMER_MAX_ATTEMPTS,
+        },
+    )
+    redis.xack.assert_not_awaited()
+    redis.xdel.assert_not_awaited()
+
+
+async def test_handle_processing_failure_expurga_apos_limite(monkeypatch):
+    redis = Mock()
+    redis.xack = AsyncMock(return_value=1)
+    redis.xdel = AsyncMock(return_value=1)
+    save_event_result = AsyncMock()
+    monkeypatch.setattr(consumer, "get_redis_client", Mock(return_value=redis))
+    monkeypatch.setattr(
+        consumer,
+        "get_delivery_count",
+        AsyncMock(return_value=3),
+    )
+    monkeypatch.setattr(consumer, "save_event_result", save_event_result)
+
+    await consumer.handle_processing_failure(
+        "1700000000000-0",
+        {"event_id": "event-123"},
+    )
+
+    save_event_result.assert_awaited_once_with(
+        "event-123",
+        {
+            "status": "failed",
+            "error": "Não foi possível processar a mensagem.",
+            "attempts": 3,
+            "max_attempts": consumer.settings.AGENT_CONSUMER_MAX_ATTEMPTS,
+        },
+    )
+    redis.xack.assert_awaited_once_with(
+        consumer.settings.AGENT_STREAM_CHATBOT,
+        consumer.settings.AGENT_STREAM_GROUP,
+        "1700000000000-0",
+    )
+    redis.xdel.assert_awaited_once_with(
+        consumer.settings.AGENT_STREAM_CHATBOT,
+        "1700000000000-0",
+    )
+
+
 async def test_recover_pending_messages_reivindica_e_processa_pendentes(
     monkeypatch,
 ):
@@ -262,6 +356,7 @@ async def test_run_consumer_registra_falha_e_mantem_execucao(monkeypatch):
 
     redis.xreadgroup = AsyncMock(side_effect=read_once)
     process_stream_message = AsyncMock(side_effect=RuntimeError("Falha no agente"))
+    handle_processing_failure = AsyncMock()
     logger = Mock()
     configure_stream_reader(monkeypatch, redis)
     monkeypatch.setattr(
@@ -270,6 +365,11 @@ async def test_run_consumer_registra_falha_e_mantem_execucao(monkeypatch):
         process_stream_message,
     )
     monkeypatch.setattr(consumer, "recover_pending_messages", AsyncMock())
+    monkeypatch.setattr(
+        consumer,
+        "handle_processing_failure",
+        handle_processing_failure,
+    )
     monkeypatch.setattr(consumer, "logger", logger)
 
     await consumer.run_consumer(stop_event, consumer_name="consumer-1")
@@ -278,6 +378,7 @@ async def test_run_consumer_registra_falha_e_mantem_execucao(monkeypatch):
         "Falha ao processar mensagem %s",
         "message-1",
     )
+    handle_processing_failure.assert_awaited_once_with("message-1", {})
 
 
 async def test_run_consumer_propaga_cancelamento(monkeypatch):

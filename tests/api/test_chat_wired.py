@@ -80,7 +80,10 @@ def test_chat_remove_resultado_temporario_quando_publicacao_falha(monkeypatch):
         delete_event_result,
     )
 
-    with pytest.raises(ConnectionError, match="Redis indisponível"), _client() as client:
+    with (
+        pytest.raises(ConnectionError, match="Redis indisponível"),
+        _client() as client,
+    ):
         client.post(
             "/chat",
             json={"conversation_id": "conv-1", "message": "Olá"},
@@ -123,6 +126,36 @@ def test_chat_retorna_resultado_concluido(monkeypatch):
     get_event_result.assert_awaited_once_with(event_id)
 
 
+def test_chat_retorna_resultado_com_falha_definitiva(monkeypatch):
+    event_id = UUID("550e8400-e29b-41d4-a716-446655440000")
+    monkeypatch.setattr(
+        "src.api.routes.chat.get_event_result",
+        AsyncMock(
+            return_value={
+                "event_id": str(event_id),
+                "status": "failed",
+                "error": "Não foi possível processar a mensagem.",
+                "attempts": 3,
+                "max_attempts": 3,
+            }
+        ),
+    )
+
+    with _client() as client:
+        response = client.get(f"/chat/{event_id}")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "event_id": str(event_id),
+        "status": "failed",
+        "error": "Não foi possível processar a mensagem.",
+        "attempts": 3,
+        "max_attempts": 3,
+        "specialists_used": [],
+        "workflow_steps": [],
+    }
+
+
 def test_chat_retorna_404_quando_evento_nao_existe(monkeypatch):
     event_id = UUID("550e8400-e29b-41d4-a716-446655440000")
     monkeypatch.setattr(
@@ -134,9 +167,7 @@ def test_chat_retorna_404_quando_evento_nao_existe(monkeypatch):
         response = client.get(f"/chat/{event_id}")
 
     assert response.status_code == 404
-    assert response.json() == {
-        "detail": "Evento não encontrado ou expirado."
-    }
+    assert response.json() == {"detail": "Evento não encontrado ou expirado."}
 
 
 def test_chat_routes_expose_descriptions_in_openapi():

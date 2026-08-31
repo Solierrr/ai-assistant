@@ -41,8 +41,11 @@ class ChatResultResponse(BaseModel):
     """Representa o estado e o resultado temporário do processamento."""
 
     event_id: UUID
-    status: Literal["queued", "processing", "completed"]
+    status: Literal["queued", "processing", "retrying", "completed", "failed"]
     conversation_id: str | None = None
     response: str | None = None
+    error: str | None = None
+    attempts: int | None = Field(default=None, ge=1)
+    max_attempts: int | None = Field(default=None, ge=1)
     specialists_used: list[str] = Field(default_factory=list)
     workflow_steps: list[str] = Field(default_factory=list)
