@@ -54,6 +54,7 @@ async def conversar(requisicao: ChatRequest) -> ChatAcceptedResponse:
 @router.get(
     "/chat/{event_id}",
     response_model=ChatResultResponse,
+    response_model_exclude_none=True,
     summary="Consultar processamento do chatbot",
     responses={
         status.HTTP_404_NOT_FOUND: {

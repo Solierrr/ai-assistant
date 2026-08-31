@@ -20,10 +20,11 @@ class Settings(BaseSettings):
 
     AGENT_CONSUMER_PREFIX: str = "chatbot-consumer"
     AGENT_CONSUMER_BLOCK_MS: int = Field(default=60_000, gt=0)
-    AGENT_CONSUMER_BATCH_SIZE: int = Field(default=10, gt=0)
+    AGENT_CONSUMER_BATCH_SIZE: int = Field(default=1, gt=0)
     AGENT_CONSUMER_CLAIM_IDLE_MS: int = Field(default=300_000, gt=0)
     AGENT_CONSUMER_CLAIM_INTERVAL_MS: int = Field(default=300_000, gt=0)
     AGENT_CONSUMER_COUNT: int = Field(default=2, ge=1)
+    AGENT_CONSUMER_MAX_ATTEMPTS: int = Field(default=3, ge=1)
     AGENT_CONSUMER_IDLE_DELAY_MS: int = Field(default=1_000, gt=0)
     AGENT_CONSUMER_RETRY_DELAY_MS: int = Field(default=1_000, gt=0)
 

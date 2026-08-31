@@ -63,6 +63,60 @@ async def process_stream_message(
     )
 
 
+async def get_delivery_count(message_id: str) -> int:
+    redis = get_redis_client()
+    pending = await redis.xpending_range(
+        name=settings.AGENT_STREAM_CHATBOT,
+        groupname=settings.AGENT_STREAM_GROUP,
+        min=message_id,
+        max=message_id,
+        count=1,
+    )
+
+    if not pending or pending[0]["message_id"] != message_id:
+        return 1
+    return int(pending[0]["times_delivered"])
+
+
+async def handle_processing_failure(
+    message_id: str,
+    fields: Mapping[str, str],
+) -> None:
+    redis = get_redis_client()
+    attempts = await get_delivery_count(message_id)
+    event_id = fields.get("event_id")
+
+    if attempts < settings.AGENT_CONSUMER_MAX_ATTEMPTS:
+        if event_id:
+            await save_event_result(
+                event_id,
+                {
+                    "status": "retrying",
+                    "attempts": attempts,
+                    "max_attempts": settings.AGENT_CONSUMER_MAX_ATTEMPTS,
+                },
+            )
+        return
+
+    if event_id:
+        await save_event_result(
+            event_id,
+            {
+                "status": "failed",
+                "error": "Não foi possível processar a mensagem.",
+                "attempts": attempts,
+                "max_attempts": settings.AGENT_CONSUMER_MAX_ATTEMPTS,
+            },
+        )
+
+    await redis.xack(
+        settings.AGENT_STREAM_CHATBOT,
+        settings.AGENT_STREAM_GROUP,
+        message_id,
+    )
+    await redis.xdel(settings.AGENT_STREAM_CHATBOT, message_id)
+
+
 async def process_stream_messages(
     stream_messages: Iterable[tuple[str, Mapping[str, str]]],
 ) -> None:
@@ -76,6 +130,15 @@ async def process_stream_messages(
                 "Falha ao processar mensagem %s",
                 message_id,
             )
+            try:
+                await handle_processing_failure(message_id, fields)
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                logger.exception(
+                    "Falha ao registrar tentativa da mensagem %s",
+                    message_id,
+                )
 
 
 async def recover_pending_messages(consumer_name: str) -> None:
