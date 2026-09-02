@@ -5,6 +5,7 @@ langchain-core
 langchain-google-genai
 langchain-groq
 langchain-mcp-adapters==0.3.2
+mcp==1.29.1
 pymongo
 pydantic-settings
 httpx
