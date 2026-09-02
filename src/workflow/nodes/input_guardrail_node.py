@@ -1,4 +1,5 @@
 from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage
+from pydantic import BaseModel
 
 from src.agents.base.base_prompt import build_system_prompt
 from src.core.guardrails.anonymize import anonymize_text
@@ -17,6 +18,11 @@ INPUT_GUARDRAIL_PROMPT = build_system_prompt(
 BLOCKED_RESPONSE = (
     "Desculpe, não posso processar essa solicitação por políticas de segurança."
 )
+
+
+class ClassificacaoEntrada(BaseModel):
+    categoria: str
+    motivo: str
 
 
 def _blocked_result(
@@ -43,17 +49,12 @@ def input_guardrail_node(state: GraphState, config=None) -> dict:
 
     anonymized_text, pii_map = anonymize_text(last_message)
     formatted_prompt = INPUT_GUARDRAIL_PROMPT.format(mensagem=anonymized_text)
-    response = (
+    classificacao = (
         llm_groq()
+        .with_structured_output(ClassificacaoEntrada)
         .invoke([HumanMessage(content=formatted_prompt)], config=config)
-        .content
     )
-
-    category = "INDEFINIDO"
-    for line in response.splitlines():
-        if line.upper().startswith("CATEGORIA:"):
-            category = line.split(":", 1)[1].strip().upper()
-            break
+    category = classificacao.categoria.strip().upper()
 
     if category != "APROVADO":
         return _blocked_result(state, category, pii_map)
