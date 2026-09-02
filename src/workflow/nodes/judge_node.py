@@ -21,13 +21,13 @@ BLOCKED_RESPONSE = (
 )
 
 
-def judge_node(state: GraphState) -> dict:
+def judge_node(state: GraphState, config=None) -> dict:
     last_message = state["messages"][-1].content
     messages_with_context = [
         SystemMessage(content=JUDGE_PROMPT),
         HumanMessage(content=f"Resposta a ser auditada:\n\n{last_message}"),
     ]
-    output = llm_groq().invoke(messages_with_context).content
+    output = llm_groq().invoke(messages_with_context, config=config).content
 
     status = "REPROVADO"
     for line in output.splitlines():

@@ -2,12 +2,14 @@ from uuid import uuid4
 
 from langchain_core.messages import HumanMessage
 
+from src.core.config.settings import settings
 from src.core.guardrails.anonymize import anonymize_text
 from src.infra.api_messenger.client import (
     criar_conversa_chatbot,
     enviar_mensagem_chatbot,
     enviar_mensagem_usuario,
 )
+from src.workflow.observability.step_tracker import StepTracker
 
 _conversations_por_thread: dict[str, str] = {}
 
@@ -37,6 +39,10 @@ async def execute_turn(
         api_conversation_id, anonymized_user_input, user_token
     )
 
+    tracker = StepTracker(
+        conversation_id=api_conversation_id, environment=settings.ENVIRONMENT
+    )
+
     final_state = await workflow.ainvoke(
         {
             "messages": [HumanMessage(content=user_input)],
@@ -45,7 +51,10 @@ async def execute_turn(
             "turn_agents": [],
             "judge_retries": 0,
         },
-        config={"configurable": {"thread_id": conversation_id}},
+        config={
+            "configurable": {"thread_id": conversation_id},
+            "callbacks": [tracker],
+        },
     )
 
     final_message = final_state["messages"][-1]

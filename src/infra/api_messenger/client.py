@@ -61,6 +61,16 @@ async def enviar_mensagem_chatbot(
         resp.raise_for_status()
 
 
+async def enviar_observabilidade(payload: dict) -> None:
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(
+            f"{settings.API_MESSENGER_URL}/internal/observability",
+            json={**payload, "environment": settings.ENVIRONMENT},
+            headers=await _headers(),
+        )
+        resp.raise_for_status()
+
+
 async def enviar_mensagem_usuario(
     conversation_id: str, content: str, user_token: str
 ) -> None:

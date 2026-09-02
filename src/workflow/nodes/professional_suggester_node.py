@@ -10,10 +10,12 @@ from src.workflow.state import GraphState
 from src.workflow.turn_tracking import append_turn_agent
 
 
-async def professional_suggester_node(state: GraphState) -> dict:
+async def professional_suggester_node(state: GraphState, config=None) -> dict:
     tools = await get_mcp_tool("buscar_tecnicos_credenciados")
     agent = build_agent(PROFESSIONAL_SUGGESTER_AGENT, tools=tools)
-    result = await agent.ainvoke({"messages": messages_with_summary(state)})
+    result = await agent.ainvoke(
+        {"messages": messages_with_summary(state)}, config=config
+    )
     last_message = result["messages"][-1]
 
     return {

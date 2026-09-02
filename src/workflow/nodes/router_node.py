@@ -15,7 +15,7 @@ from src.workflow.turn_tracking import append_turn_agent
 ROUTER_PROMPT = build_system_prompt(ROUTER_AGENT)
 
 
-def router_node(state: GraphState) -> dict:
+def router_node(state: GraphState, runnable_config=None) -> dict:
     consulted = consulted_specialists(state)
     available_routes = sorted(available_specialist_routes(state))
     limit_reached = len(consulted) >= config.MAX_SPECIALISTS_PER_REQUEST
@@ -39,7 +39,7 @@ def router_node(state: GraphState) -> dict:
         SystemMessage(content=routing_context),
         *messages_with_summary(state),
     ]
-    output = llm_groq().invoke(messages_with_context).content
+    output = llm_groq().invoke(messages_with_context, config=runnable_config).content
 
     if "ROUTE=" in output:
         extracted_route = output.split("ROUTE=")[1].strip().splitlines()[0].lower()
