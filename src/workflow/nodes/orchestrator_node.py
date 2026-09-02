@@ -11,7 +11,7 @@ from src.workflow.turn_tracking import append_turn_agent
 ORCHESTRATOR_PROMPT = build_system_prompt(ORCHESTRATOR_AGENT)
 
 
-def orchestrator_node(state: GraphState) -> dict:
+def orchestrator_node(state: GraphState, config=None) -> dict:
     messages_with_context = [
         SystemMessage(content=ORCHESTRATOR_PROMPT),
         *messages_with_summary(state),
@@ -19,7 +19,7 @@ def orchestrator_node(state: GraphState) -> dict:
     response = (
         llm_gemini()
         .with_fallbacks([llm_groq()])
-        .invoke(messages_with_context)
+        .invoke(messages_with_context, config=config)
         .content.strip()
     )
 

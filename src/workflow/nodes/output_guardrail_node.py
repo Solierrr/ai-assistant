@@ -12,11 +12,13 @@ OUTPUT_GUARDRAIL_PROMPT = build_system_prompt(
 )
 
 
-def output_guardrail_node(state: GraphState) -> dict:
+def output_guardrail_node(state: GraphState, config=None) -> dict:
     last_message_text = state["messages"][-1].content
     formatted_prompt = OUTPUT_GUARDRAIL_PROMPT.format(resposta=last_message_text)
     reviewed_response = (
-        llm_groq().invoke([HumanMessage(content=formatted_prompt)]).content
+        llm_groq()
+        .invoke([HumanMessage(content=formatted_prompt)], config=config)
+        .content
     )
 
     final_response = reviewed_response
