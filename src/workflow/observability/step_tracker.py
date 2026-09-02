@@ -1,9 +1,12 @@
+import logging
 import time
 from datetime import datetime, timezone
 
 from langchain_core.callbacks import AsyncCallbackHandler
 
 from src.infra.api_messenger.client import enviar_observabilidade
+
+logger = logging.getLogger(__name__)
 
 
 class StepTracker(AsyncCallbackHandler):
@@ -29,46 +32,67 @@ class StepTracker(AsyncCallbackHandler):
         }
         try:
             await enviar_observabilidade(doc)
-        except Exception:
-            pass  # observabilidade nunca pode derrubar o fluxo principal
+        except Exception as erro:  # noqa: BLE001
+            # observabilidade nunca pode derrubar o fluxo principal
+            logger.warning("Falha ao enviar observabilidade (node=%s): %s", node, erro)
 
-    async def on_llm_start(self, serialized, prompts, *, run_id, metadata=None, **kwargs):
+    async def on_llm_start(
+        self, serialized, prompts, *, run_id, metadata=None, **kwargs
+    ):
         self._starts[run_id] = time.perf_counter()
-        self._node_by_run[run_id] = (metadata or {}).get("langgraph_node", "desconhecido")
+        self._node_by_run[run_id] = (metadata or {}).get(
+            "langgraph_node", "desconhecido"
+        )
 
     async def on_llm_end(self, response, *, run_id, **kwargs):
-        latency_ms = (time.perf_counter() - self._starts.pop(run_id, time.perf_counter())) * 1000
+        latency_ms = (
+            time.perf_counter() - self._starts.pop(run_id, time.perf_counter())
+        ) * 1000
         node = self._node_by_run.pop(run_id, "desconhecido")
         generation = response.generations[0][0]
         message = getattr(generation, "message", None)
         usage = getattr(message, "usage_metadata", None) if message else None
         resp_metadata = getattr(message, "response_metadata", {}) if message else {}
 
-        await self._salvar(node, {
-            "stepType": "llm_call",
-            "model": resp_metadata.get("model_name") or resp_metadata.get("model"),
-            "tokensIn": usage.get("input_tokens") if usage else None,
-            "tokensOut": usage.get("output_tokens") if usage else None,
-            "latencyMs": round(latency_ms, 1),
-            "status": "ok",
-        })
+        await self._salvar(
+            node,
+            {
+                "stepType": "llm_call",
+                "model": resp_metadata.get("model_name") or resp_metadata.get("model"),
+                "tokensIn": usage.get("input_tokens") if usage else None,
+                "tokensOut": usage.get("output_tokens") if usage else None,
+                "latencyMs": round(latency_ms, 1),
+                "status": "ok",
+            },
+        )
 
     async def on_llm_error(self, error, *, run_id, **kwargs):
         node = self._node_by_run.pop(run_id, "desconhecido")
-        await self._salvar(node, {"stepType": "llm_call", "status": "error", "error": str(error)})
+        await self._salvar(
+            node, {"stepType": "llm_call", "status": "error", "error": str(error)}
+        )
 
-    async def on_tool_start(self, serialized, input_str, *, run_id, metadata=None, **kwargs):
+    async def on_tool_start(
+        self, serialized, input_str, *, run_id, metadata=None, **kwargs
+    ):
         self._starts[run_id] = time.perf_counter()
-        self._node_by_run[run_id] = (metadata or {}).get("langgraph_node", "desconhecido")
+        self._node_by_run[run_id] = (metadata or {}).get(
+            "langgraph_node", "desconhecido"
+        )
         self._tool_name_by_run[run_id] = serialized.get("name", "tool_desconhecida")
 
     async def on_tool_end(self, output, *, run_id, **kwargs):
-        latency_ms = (time.perf_counter() - self._starts.pop(run_id, time.perf_counter())) * 1000
+        latency_ms = (
+            time.perf_counter() - self._starts.pop(run_id, time.perf_counter())
+        ) * 1000
         node = self._node_by_run.pop(run_id, "desconhecido")
         tool_name = self._tool_name_by_run.pop(run_id, "tool_desconhecida")
-        await self._salvar(node, {
-            "stepType": "tool_call",
-            "toolName": tool_name,
-            "latencyMs": round(latency_ms, 1),
-            "status": "ok",
-        })
+        await self._salvar(
+            node,
+            {
+                "stepType": "tool_call",
+                "toolName": tool_name,
+                "latencyMs": round(latency_ms, 1),
+                "status": "ok",
+            },
+        )
