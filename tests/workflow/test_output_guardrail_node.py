@@ -1,15 +1,19 @@
-from types import SimpleNamespace
 from unittest.mock import Mock
 
-from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage
+from langchain_core.messages import AIMessage, RemoveMessage
 
 from src.agents.base.system_prompt import SYSTEM_CORE_COMMUNICATION, SYSTEM_CORE_SECURITY
 import src.workflow.nodes.output_guardrail_node as output_guardrail_node
 
 
-def _mock_llm(content):
+def _mock_llm(resposta_revisada, foi_corrigida):
+    revisao = output_guardrail_node.RevisaoCompliance(
+        resposta_revisada=resposta_revisada, foi_corrigida=foi_corrigida
+    )
+    structured_llm = Mock()
+    structured_llm.invoke.return_value = revisao
     llm = Mock()
-    llm.invoke.return_value = SimpleNamespace(content=content)
+    llm.with_structured_output.return_value = structured_llm
     return llm
 
 
@@ -21,8 +25,8 @@ def test_output_guardrail_prompt_omits_communication_standards():
     )
 
 
-def test_output_guardrail_node_extracts_and_deanonymizes_response(monkeypatch):
-    llm = _mock_llm("STATUS: CORRIGIDO\n\nRESPOSTA:\nOlá, [PII_NOME].")
+def test_output_guardrail_node_deanonymizes_corrected_response(monkeypatch):
+    llm = _mock_llm("Olá, [PII_NOME].", foi_corrigida=True)
     deanonymize = Mock(return_value="Olá, Ana.")
     monkeypatch.setattr(output_guardrail_node, "llm_groq", Mock(return_value=llm))
     monkeypatch.setattr(output_guardrail_node, "deanonymize_text", deanonymize)
@@ -53,8 +57,8 @@ def test_output_guardrail_node_extracts_and_deanonymizes_response(monkeypatch):
     deanonymize.assert_called_once_with("Olá, [PII_NOME].", {"[PII_NOME]": "Ana"})
 
 
-def test_output_guardrail_node_preserves_text_without_header(monkeypatch):
-    llm = _mock_llm("Resposta revisada")
+def test_output_guardrail_node_preserves_response_without_correction(monkeypatch):
+    llm = _mock_llm("Resposta revisada", foi_corrigida=False)
     deanonymize = Mock(return_value="Resposta revisada")
     monkeypatch.setattr(output_guardrail_node, "llm_groq", Mock(return_value=llm))
     monkeypatch.setattr(output_guardrail_node, "deanonymize_text", deanonymize)

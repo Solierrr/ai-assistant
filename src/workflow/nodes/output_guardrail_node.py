@@ -1,4 +1,5 @@
 from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage
+from pydantic import BaseModel
 
 from src.agents.base.base_prompt import build_system_prompt
 from src.core.guardrails.anonymize import deanonymize_text
@@ -12,20 +13,21 @@ OUTPUT_GUARDRAIL_PROMPT = build_system_prompt(
 )
 
 
+class RevisaoCompliance(BaseModel):
+    resposta_revisada: str
+    foi_corrigida: bool
+
+
 def output_guardrail_node(state: GraphState, config=None) -> dict:
     last_message_text = state["messages"][-1].content
     formatted_prompt = OUTPUT_GUARDRAIL_PROMPT.format(resposta=last_message_text)
-    reviewed_response = (
+    revisao = (
         llm_groq()
+        .with_structured_output(RevisaoCompliance)
         .invoke([HumanMessage(content=formatted_prompt)], config=config)
-        .content
     )
 
-    final_response = reviewed_response
-    if "RESPOSTA:" in reviewed_response.upper():
-        final_response = reviewed_response.split("RESPOSTA:", 1)[-1].strip()
-
-    final_text = deanonymize_text(final_response, state["pii_map"])
+    final_text = deanonymize_text(revisao.resposta_revisada, state["pii_map"])
     workflow_steps = append_turn_agent(state, "output_guardrail")
 
     return {
