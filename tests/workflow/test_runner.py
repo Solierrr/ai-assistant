@@ -56,9 +56,10 @@ def test_execute_turn_persists_anonymized_request_and_audited_response(monkeypat
         "texto anonimo",
         "token-abc",
     )
-    assert workflow.ainvoke.await_args.kwargs["config"] == {
-        "configurable": {"thread_id": "conversation-1"}
-    }
+    config_usado = workflow.ainvoke.await_args.kwargs["config"]
+    assert config_usado["configurable"] == {"thread_id": "conversation-1"}
+    assert len(config_usado["callbacks"]) == 1
+    assert config_usado["callbacks"][0].conversation_id == "api-conv-1"
     assert enviar_mensagem_chatbot.await_args.args[:2] == (
         "api-conv-1",
         "resposta anonima",
