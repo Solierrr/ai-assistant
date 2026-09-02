@@ -34,5 +34,6 @@ def test_solar_panel_specialist_node_returns_agent_response(monkeypatch):
         solar_panel_specialist_node.SOLAR_PANEL_SPECIALIST_AGENT, tools=[tool]
     )
     agent.ainvoke.assert_awaited_once_with(
-        {"messages": [HumanMessage(content="Qual placa solar eu devo escolher?")]}
+        {"messages": [HumanMessage(content="Qual placa solar eu devo escolher?")]},
+        config=None,
     )

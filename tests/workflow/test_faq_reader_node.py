@@ -23,5 +23,6 @@ def test_faq_reader_node_returns_agent_response(monkeypatch):
         faq_reader_node.FAQ_READER_AGENT, tools=[faq_reader_node.faq_retriever]
     )
     agent.invoke.assert_called_once_with(
-        {"messages": [HumanMessage(content="Qual é a garantia do painel?")]}
+        {"messages": [HumanMessage(content="Qual é a garantia do painel?")]},
+        config=None,
     )

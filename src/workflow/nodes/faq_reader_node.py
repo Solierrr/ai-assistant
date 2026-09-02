@@ -8,9 +8,9 @@ from src.workflow.state import GraphState
 from src.workflow.turn_tracking import append_turn_agent
 
 
-def faq_reader_node(state: GraphState) -> dict:
+def faq_reader_node(state: GraphState, config=None) -> dict:
     agent = build_agent(FAQ_READER_AGENT, tools=[faq_retriever])
-    result = agent.invoke({"messages": messages_with_summary(state)})
+    result = agent.invoke({"messages": messages_with_summary(state)}, config=config)
     last_message = result["messages"][-1]
 
     return {

@@ -34,5 +34,6 @@ def test_professional_suggester_node_returns_agent_response(monkeypatch):
         professional_suggester_node.PROFESSIONAL_SUGGESTER_AGENT, tools=[tool]
     )
     agent.ainvoke.assert_awaited_once_with(
-        {"messages": [HumanMessage(content="Preciso de um instalador em SP")]}
+        {"messages": [HumanMessage(content="Preciso de um instalador em SP")]},
+        config=None,
     )

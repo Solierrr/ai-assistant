@@ -33,7 +33,7 @@ def _blocked_result(
     }
 
 
-def input_guardrail_node(state: GraphState) -> dict:
+def input_guardrail_node(state: GraphState, config=None) -> dict:
     last_message = state["messages"][-1].content
 
     if matches_injection_pattern(last_message):
@@ -43,7 +43,11 @@ def input_guardrail_node(state: GraphState) -> dict:
 
     anonymized_text, pii_map = anonymize_text(last_message)
     formatted_prompt = INPUT_GUARDRAIL_PROMPT.format(mensagem=anonymized_text)
-    response = llm_groq().invoke([HumanMessage(content=formatted_prompt)]).content
+    response = (
+        llm_groq()
+        .invoke([HumanMessage(content=formatted_prompt)], config=config)
+        .content
+    )
 
     category = "INDEFINIDO"
     for line in response.splitlines():

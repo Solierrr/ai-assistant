@@ -19,7 +19,7 @@ Novo Resumo Final:
 """
 
 
-def condense_history_node(state: GraphState) -> dict:
+def condense_history_node(state: GraphState, config=None) -> dict:
     message_history = state.get("messages", [])
     current_summary = state.get("summary", "")
 
@@ -43,7 +43,9 @@ def condense_history_node(state: GraphState) -> dict:
     )
 
     new_summary = (
-        llm_groq().invoke([HumanMessage(content=formatted_prompt)]).content.strip()
+        llm_groq()
+        .invoke([HumanMessage(content=formatted_prompt)], config=config)
+        .content.strip()
     )
 
     # Cria uma lista de comandos de remoção para as mensagens que foram resumidas
