@@ -92,6 +92,29 @@ def test_input_guardrail_node_fails_closed_for_unknown_category(monkeypatch):
     assert resultado["turn_agents"] == ["input_guardrail_blocked_categoria_inesperada"]
 
 
+def test_input_guardrail_node_fails_closed_when_llm_raises(monkeypatch):
+    structured_llm = Mock()
+    structured_llm.invoke.side_effect = RuntimeError("groq indisponivel")
+    llm = Mock()
+    llm.with_structured_output.return_value = structured_llm
+    monkeypatch.setattr(input_guardrail_node, "llm_groq", Mock(return_value=llm))
+    monkeypatch.setattr(
+        input_guardrail_node,
+        "anonymize_text",
+        Mock(return_value=("mensagem anonima", {})),
+    )
+    mensagem = HumanMessage(content="mensagem qualquer", id="msg-6")
+
+    resultado = input_guardrail_node.input_guardrail_node({"messages": [mensagem]})
+
+    assert resultado["route"] == "end"
+    assert resultado["turn_agents"] == [
+        "input_guardrail_blocked_falha_avaliacao_guardrail"
+    ]
+    assert isinstance(resultado["messages"][1], AIMessage)
+    assert "não posso processar" in resultado["messages"][1].content
+
+
 def test_input_guardrail_node_blocks_injection_without_calling_llm(monkeypatch):
     llm = _mock_llm("nao deveria ser chamado")
     monkeypatch.setattr(input_guardrail_node, "llm_groq", Mock(return_value=llm))

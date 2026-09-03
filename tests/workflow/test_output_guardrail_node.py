@@ -70,3 +70,22 @@ def test_output_guardrail_node_preserves_response_without_correction(monkeypatch
 
     assert resultado["messages"][1].content == "Resposta revisada"
     deanonymize.assert_called_once_with("Resposta revisada", {})
+
+
+def test_output_guardrail_node_fails_closed_when_llm_raises(monkeypatch):
+    structured_llm = Mock()
+    structured_llm.invoke.side_effect = RuntimeError("groq indisponivel")
+    llm = Mock()
+    llm.with_structured_output.return_value = structured_llm
+    deanonymize = Mock()
+    monkeypatch.setattr(output_guardrail_node, "llm_groq", Mock(return_value=llm))
+    monkeypatch.setattr(output_guardrail_node, "deanonymize_text", deanonymize)
+    mensagem = AIMessage(content="Resposta do agente", id="msg-3")
+
+    resultado = output_guardrail_node.output_guardrail_node(
+        {"messages": [mensagem], "pii_map": {}, "turn_agents": ["router"]}
+    )
+
+    assert resultado["messages"][1].content == output_guardrail_node.FALLBACK_RESPONSE
+    assert resultado["turn_agents"] == ["router", "output_guardrail"]
+    deanonymize.assert_not_called()

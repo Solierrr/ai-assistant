@@ -1,3 +1,5 @@
+import logging
+
 from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage
 from pydantic import BaseModel
 
@@ -10,6 +12,8 @@ from src.core.guardrails.injection_patterns import (
 from src.core.guardrails.prompt import _PROMPT_CLASSIFICADOR
 from src.core.llm.llm_groq import llm_groq
 from src.workflow.state import GraphState
+
+logger = logging.getLogger(__name__)
 
 INPUT_GUARDRAIL_PROMPT = build_system_prompt(
     _PROMPT_CLASSIFICADOR, include_communication_standards=False
@@ -49,11 +53,17 @@ def input_guardrail_node(state: GraphState, config=None) -> dict:
 
     anonymized_text, pii_map = anonymize_text(last_message)
     formatted_prompt = INPUT_GUARDRAIL_PROMPT.format(mensagem=anonymized_text)
-    classificacao = (
-        llm_groq()
-        .with_structured_output(ClassificacaoEntrada)
-        .invoke([HumanMessage(content=formatted_prompt)], config=config)
-    )
+
+    try:
+        classificacao = (
+            llm_groq()
+            .with_structured_output(ClassificacaoEntrada)
+            .invoke([HumanMessage(content=formatted_prompt)], config=config)
+        )
+    except Exception as erro: 
+        logger.warning("Falha ao avaliar input_guardrail: %s", erro)
+        return _blocked_result(state, "falha_avaliacao_guardrail")
+
     category = classificacao.categoria.strip().upper()
 
     if category != "APROVADO":
