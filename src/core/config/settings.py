@@ -14,7 +14,6 @@ class Settings(BaseSettings):
     UPSTASH_REDIS_PASSWORD: str | None = None
 
     API_MESSENGER_URL: str | None = None
-    API_MESSENGER_CLIENT_SECRET: str | None = None
 
     ENVIRONMENT: str = "LOCAL"
 
@@ -28,7 +27,7 @@ class Settings(BaseSettings):
     GOOGLE_API_KEY: str | None = None
     GROQ_API_KEY: str | None = None
 
-    model_config = SettingsConfigDict(env_file=".env")
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 
 settings = Settings()
