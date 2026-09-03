@@ -1,6 +1,9 @@
 from unittest.mock import Mock
 
+import pytest
+from groq import GroqError
 from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage
+from pydantic import ValidationError
 
 from src.agents.base.system_prompt import SYSTEM_CORE_COMMUNICATION, SYSTEM_CORE_SECURITY
 import src.workflow.nodes.input_guardrail_node as input_guardrail_node
@@ -90,6 +93,53 @@ def test_input_guardrail_node_fails_closed_for_unknown_category(monkeypatch):
 
     assert resultado["route"] == "end"
     assert resultado["turn_agents"] == ["input_guardrail_blocked_categoria_inesperada"]
+
+
+def test_input_guardrail_node_fails_closed_when_llm_raises(monkeypatch):
+    structured_llm = Mock()
+    structured_llm.invoke.side_effect = GroqError("groq indisponivel")
+    llm = Mock()
+    llm.with_structured_output.return_value = structured_llm
+    monkeypatch.setattr(input_guardrail_node, "llm_groq", Mock(return_value=llm))
+    monkeypatch.setattr(
+        input_guardrail_node,
+        "anonymize_text",
+        Mock(return_value=("mensagem anonima", {})),
+    )
+    mensagem = HumanMessage(content="mensagem qualquer", id="msg-6")
+
+    resultado = input_guardrail_node.input_guardrail_node({"messages": [mensagem]})
+
+    assert resultado["route"] == "end"
+    assert resultado["turn_agents"] == [
+        "input_guardrail_blocked_falha_avaliacao_guardrail"
+    ]
+
+
+def test_input_guardrail_node_fails_closed_when_output_fails_validation(monkeypatch):
+    with pytest.raises(ValidationError) as excinfo:
+        input_guardrail_node.ClassificacaoEntrada()  # campos obrigatorios faltando
+
+    structured_llm = Mock()
+    structured_llm.invoke.side_effect = excinfo.value
+    llm = Mock()
+    llm.with_structured_output.return_value = structured_llm
+    monkeypatch.setattr(input_guardrail_node, "llm_groq", Mock(return_value=llm))
+    monkeypatch.setattr(
+        input_guardrail_node,
+        "anonymize_text",
+        Mock(return_value=("mensagem anonima", {})),
+    )
+    mensagem = HumanMessage(content="mensagem qualquer", id="msg-7")
+
+    resultado = input_guardrail_node.input_guardrail_node({"messages": [mensagem]})
+
+    assert resultado["route"] == "end"
+    assert resultado["turn_agents"] == [
+        "input_guardrail_blocked_falha_avaliacao_guardrail"
+    ]
+    assert isinstance(resultado["messages"][1], AIMessage)
+    assert "não posso processar" in resultado["messages"][1].content
 
 
 def test_input_guardrail_node_blocks_injection_without_calling_llm(monkeypatch):
