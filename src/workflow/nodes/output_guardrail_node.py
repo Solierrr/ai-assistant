@@ -1,7 +1,8 @@
 import logging
 
+from groq import GroqError
 from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from src.agents.base.base_prompt import build_system_prompt
 from src.core.guardrails.anonymize import deanonymize_text
@@ -16,9 +17,7 @@ OUTPUT_GUARDRAIL_PROMPT = build_system_prompt(
     _PROMPT_COMPLIANCE, include_communication_standards=False
 )
 
-FALLBACK_RESPONSE = (
-    "Não foi possível processar sua solicitação no momento. Tente novamente em instantes."
-)
+FALLBACK_RESPONSE = "Não foi possível processar sua solicitação no momento. Tente novamente em instantes."
 
 
 class RevisaoCompliance(BaseModel):
@@ -37,7 +36,7 @@ def output_guardrail_node(state: GraphState, config=None) -> dict:
             .invoke([HumanMessage(content=formatted_prompt)], config=config)
         )
         final_text = deanonymize_text(revisao.resposta_revisada, state["pii_map"])
-    except Exception as erro:  # noqa: BLE001
+    except (GroqError, ValidationError) as erro:
         # fail-closed: se o guardrail nao conseguiu revisar, nao deixa a
         # resposta nao revisada sair - troca por uma mensagem generica
         logger.warning("Falha ao avaliar output_guardrail: %s", erro)

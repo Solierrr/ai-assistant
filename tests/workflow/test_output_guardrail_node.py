@@ -1,6 +1,9 @@
 from unittest.mock import Mock
 
+import pytest
+from groq import GroqError
 from langchain_core.messages import AIMessage, RemoveMessage
+from pydantic import ValidationError
 
 from src.agents.base.system_prompt import SYSTEM_CORE_COMMUNICATION, SYSTEM_CORE_SECURITY
 import src.workflow.nodes.output_guardrail_node as output_guardrail_node
@@ -74,7 +77,7 @@ def test_output_guardrail_node_preserves_response_without_correction(monkeypatch
 
 def test_output_guardrail_node_fails_closed_when_llm_raises(monkeypatch):
     structured_llm = Mock()
-    structured_llm.invoke.side_effect = RuntimeError("groq indisponivel")
+    structured_llm.invoke.side_effect = GroqError("groq indisponivel")
     llm = Mock()
     llm.with_structured_output.return_value = structured_llm
     deanonymize = Mock()
@@ -88,4 +91,25 @@ def test_output_guardrail_node_fails_closed_when_llm_raises(monkeypatch):
 
     assert resultado["messages"][1].content == output_guardrail_node.FALLBACK_RESPONSE
     assert resultado["turn_agents"] == ["router", "output_guardrail"]
+    deanonymize.assert_not_called()
+
+
+def test_output_guardrail_node_fails_closed_when_output_fails_validation(monkeypatch):
+    with pytest.raises(ValidationError) as excinfo:
+        output_guardrail_node.RevisaoCompliance()  # campos obrigatorios faltando
+
+    structured_llm = Mock()
+    structured_llm.invoke.side_effect = excinfo.value
+    llm = Mock()
+    llm.with_structured_output.return_value = structured_llm
+    deanonymize = Mock()
+    monkeypatch.setattr(output_guardrail_node, "llm_groq", Mock(return_value=llm))
+    monkeypatch.setattr(output_guardrail_node, "deanonymize_text", deanonymize)
+    mensagem = AIMessage(content="Resposta do agente", id="msg-4")
+
+    resultado = output_guardrail_node.output_guardrail_node(
+        {"messages": [mensagem], "pii_map": {}, "turn_agents": ["router"]}
+    )
+
+    assert resultado["messages"][1].content == output_guardrail_node.FALLBACK_RESPONSE
     deanonymize.assert_not_called()

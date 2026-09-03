@@ -1,7 +1,8 @@
 import logging
 
+from groq import GroqError
 from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from src.agents.base.base_prompt import build_system_prompt
 from src.core.guardrails.anonymize import anonymize_text
@@ -60,7 +61,7 @@ def input_guardrail_node(state: GraphState, config=None) -> dict:
             .with_structured_output(ClassificacaoEntrada)
             .invoke([HumanMessage(content=formatted_prompt)], config=config)
         )
-    except Exception as erro: 
+    except (GroqError, ValidationError) as erro:
         logger.warning("Falha ao avaliar input_guardrail: %s", erro)
         return _blocked_result(state, "falha_avaliacao_guardrail")
 
