@@ -5,14 +5,25 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     MONGO_URI: str = Field(
         "mongodb://localhost:27017",
-        validation_alias=AliasChoices("MONGO_URI", "MONGODB_URI"),
+        validation_alias=AliasChoices("DB_MONGO_URI", "MONGO_URI", "MONGODB_URI"),
     )
-    MONGO_DB: str = "assessor_inteligente"
+    MONGO_DB: str = Field(
+        "assessor_inteligente",
+        validation_alias=AliasChoices("DB_MONGO_AGENTS", "MONGO_DB"),
+    )
 
-    UPSTASH_REDIS_HOST: str | None = None
-    UPSTASH_REDIS_PORT: int = 6379
-    UPSTASH_REDIS_USERNAME: str = "default"
-    UPSTASH_REDIS_PASSWORD: str | None = None
+    UPSTASH_REDIS_HOST: str | None = Field(
+        None, validation_alias=AliasChoices("UPSTASH_AGENTS_HOST", "UPSTASH_REDIS_HOST")
+    )
+    UPSTASH_REDIS_PORT: int = Field(
+        6379, validation_alias=AliasChoices("UPSTASH_AGENTS_PORT", "UPSTASH_REDIS_PORT")
+    )
+    UPSTASH_REDIS_USERNAME: str = Field(
+        "default", validation_alias=AliasChoices("UPSTASH_AGENTS_USERNAME", "UPSTASH_REDIS_USERNAME")
+    )
+    UPSTASH_REDIS_PASSWORD: str | None = Field(
+        None, validation_alias=AliasChoices("UPSTASH_AGENTS_PASSWORD", "UPSTASH_REDIS_PASSWORD")
+    )
 
     AGENT_STREAM_CHATBOT: str = "agent:stream:chatbot"
     AGENT_STREAM_MAXLEN: int = Field(default=1_000, gt=0)
