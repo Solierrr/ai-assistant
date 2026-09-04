@@ -4,28 +4,6 @@ import httpx
 
 from src.core.config.settings import settings
 
-_access_token: str | None = None
-_refresh_token: str | None = None
-
-
-async def _autenticar() -> None:
-    global _access_token, _refresh_token
-    async with httpx.AsyncClient() as client:
-        resp = await client.post(
-            f"{settings.API_MESSENGER_URL}/internal/service-tokens",
-            json={"clientSecret": settings.API_MESSENGER_CLIENT_SECRET},
-        )
-        resp.raise_for_status()
-        dados = resp.json()
-        _access_token = dados["accessToken"]
-        _refresh_token = dados["refreshToken"]
-
-
-async def _headers() -> dict:
-    if _access_token is None:
-        await _autenticar()
-    return {"Authorization": f"Bearer {_access_token}"}
-
 
 async def criar_conversa_chatbot(user_type: str, user_details: dict, user_token: str) -> str:
     """Cria a conversa com o JWT do usuário real."""
@@ -46,7 +24,7 @@ async def criar_conversa_chatbot(user_type: str, user_details: dict, user_token:
 async def enviar_mensagem_chatbot(
     conversation_id: str, content: str, metadata: dict | None = None
 ) -> None:
-    """Registra a resposta do assistente com o token de serviço."""
+    """Registra a resposta do assistente."""
     async with httpx.AsyncClient() as client:
         resp = await client.post(
             f"{settings.API_MESSENGER_URL}/internal/messages",
@@ -56,7 +34,6 @@ async def enviar_mensagem_chatbot(
                 "metadata": metadata,
                 "environment": settings.ENVIRONMENT,
             },
-            headers=await _headers(),
         )
         resp.raise_for_status()
 
@@ -66,7 +43,6 @@ async def enviar_observabilidade(payload: dict) -> None:
         resp = await client.post(
             f"{settings.API_MESSENGER_URL}/internal/observability",
             json={**payload, "environment": settings.ENVIRONMENT},
-            headers=await _headers(),
         )
         resp.raise_for_status()
 
