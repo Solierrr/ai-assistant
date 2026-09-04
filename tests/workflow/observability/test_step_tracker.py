@@ -17,7 +17,7 @@ def _resposta_llm(model="llama-3.3", tokens_in=10, tokens_out=5):
 def test_step_tracker_registra_timeline_node_a_para_node_b(monkeypatch):
     enviar = AsyncMock()
     monkeypatch.setattr(step_tracker, "enviar_observabilidade", enviar)
-    tracker = step_tracker.StepTracker(conversation_id="conv-1", environment="LOCAL")
+    tracker = step_tracker.StepTracker(conversation_id="conv-1")
 
     async def cenario():
         await tracker.on_llm_start(
@@ -41,7 +41,7 @@ def test_step_tracker_registra_timeline_node_a_para_node_b(monkeypatch):
 def test_step_tracker_detecta_node_sozinho_via_metadata(monkeypatch):
     enviar = AsyncMock()
     monkeypatch.setattr(step_tracker, "enviar_observabilidade", enviar)
-    tracker = step_tracker.StepTracker(conversation_id="conv-1", environment="LOCAL")
+    tracker = step_tracker.StepTracker(conversation_id="conv-1")
 
     asyncio.run(
         tracker.on_llm_start(
@@ -57,7 +57,7 @@ def test_step_tracker_detecta_node_sozinho_via_metadata(monkeypatch):
 def test_step_tracker_usa_desconhecido_sem_metadata(monkeypatch):
     enviar = AsyncMock()
     monkeypatch.setattr(step_tracker, "enviar_observabilidade", enviar)
-    tracker = step_tracker.StepTracker(conversation_id="conv-1", environment="LOCAL")
+    tracker = step_tracker.StepTracker(conversation_id="conv-1")
 
     asyncio.run(tracker.on_llm_start({}, ["prompt"], run_id="run-y"))
     asyncio.run(tracker.on_llm_end(_resposta_llm(), run_id="run-y"))
@@ -69,7 +69,7 @@ def test_step_tracker_usa_desconhecido_sem_metadata(monkeypatch):
 def test_step_tracker_ordem_incrementa_entre_llm_e_tool(monkeypatch):
     enviar = AsyncMock()
     monkeypatch.setattr(step_tracker, "enviar_observabilidade", enviar)
-    tracker = step_tracker.StepTracker(conversation_id="conv-1", environment="LOCAL")
+    tracker = step_tracker.StepTracker(conversation_id="conv-1")
 
     async def cenario():
         await tracker.on_llm_start(
@@ -100,7 +100,7 @@ def test_step_tracker_inclui_conversation_id(monkeypatch):
     # de settings.ENVIRONMENT, não do valor recebido pelo tracker.
     enviar = AsyncMock()
     monkeypatch.setattr(step_tracker, "enviar_observabilidade", enviar)
-    tracker = step_tracker.StepTracker(conversation_id="conv-42", environment="PROD")
+    tracker = step_tracker.StepTracker(conversation_id="conv-42")
 
     asyncio.run(
         tracker.on_llm_start(
@@ -116,7 +116,7 @@ def test_step_tracker_inclui_conversation_id(monkeypatch):
 def test_step_tracker_registra_erro_sem_derrubar_fluxo(monkeypatch):
     enviar = AsyncMock(side_effect=Exception("api-messenger fora do ar"))
     monkeypatch.setattr(step_tracker, "enviar_observabilidade", enviar)
-    tracker = step_tracker.StepTracker(conversation_id="conv-1", environment="LOCAL")
+    tracker = step_tracker.StepTracker(conversation_id="conv-1")
 
     asyncio.run(
         tracker.on_llm_start(
@@ -128,3 +128,127 @@ def test_step_tracker_registra_erro_sem_derrubar_fluxo(monkeypatch):
     doc = enviar.await_args.args[0]
     assert doc["status"] == "error"
     assert doc["error"] == "falha no groq"
+
+
+def test_step_tracker_on_llm_error_manda_todos_os_campos_obrigatorios(monkeypatch):
+    enviar = AsyncMock()
+    monkeypatch.setattr(step_tracker, "enviar_observabilidade", enviar)
+    tracker = step_tracker.StepTracker(conversation_id="conv-1")
+
+    asyncio.run(
+        tracker.on_llm_start(
+            {}, ["prompt"], run_id="run-e", metadata={"langgraph_node": "judge"}
+        )
+    )
+    asyncio.run(tracker.on_llm_error(RuntimeError("falha no groq"), run_id="run-e"))
+
+    doc = enviar.await_args.args[0]
+    assert doc["model"] == "desconhecido"
+    assert doc["tokensIn"] == 0
+    assert doc["tokensOut"] == 0
+    assert doc["tokensTotal"] == 0
+    assert isinstance(doc["latencyMs"], float)
+    assert doc["status"] == "error"
+    assert doc["error"] == "falha no groq"
+
+
+def test_step_tracker_on_llm_end_manda_tokens_total(monkeypatch):
+    enviar = AsyncMock()
+    monkeypatch.setattr(step_tracker, "enviar_observabilidade", enviar)
+    tracker = step_tracker.StepTracker(conversation_id="conv-1")
+
+    asyncio.run(
+        tracker.on_llm_start(
+            {}, ["prompt"], run_id="run-ok", metadata={"langgraph_node": "router"}
+        )
+    )
+    asyncio.run(
+        tracker.on_llm_end(
+            _resposta_llm(model="llama-3.3", tokens_in=10, tokens_out=5),
+            run_id="run-ok",
+        )
+    )
+
+    doc = enviar.await_args.args[0]
+    assert doc["model"] == "llama-3.3"
+    assert doc["tokensIn"] == 10
+    assert doc["tokensOut"] == 5
+    assert doc["tokensTotal"] == 15
+
+
+def test_step_tracker_on_llm_end_usa_defaults_quando_usage_ausente(monkeypatch):
+    # Alguns providers não populam usage_metadata/response_metadata em
+    # toda resposta. O DTO exige model/tokensIn/tokensOut/tokensTotal
+    # sempre não-nulos, então precisa cair num default em vez de None.
+    enviar = AsyncMock()
+    monkeypatch.setattr(step_tracker, "enviar_observabilidade", enviar)
+    tracker = step_tracker.StepTracker(conversation_id="conv-1")
+
+    resposta_sem_usage = SimpleNamespace(
+        generations=[[SimpleNamespace(message=SimpleNamespace(usage_metadata=None, response_metadata={}))]]
+    )
+
+    asyncio.run(
+        tracker.on_llm_start(
+            {}, ["prompt"], run_id="run-sem-usage", metadata={"langgraph_node": "router"}
+        )
+    )
+    asyncio.run(tracker.on_llm_end(resposta_sem_usage, run_id="run-sem-usage"))
+
+    doc = enviar.await_args.args[0]
+    assert doc["model"] == "desconhecido"
+    assert doc["tokensIn"] == 0
+    assert doc["tokensOut"] == 0
+    assert doc["tokensTotal"] == 0
+
+
+def test_step_tracker_on_tool_end_manda_campos_obrigatorios_do_llm(monkeypatch):
+    # tool_call não usa LLM, mas o DTO exige model/tokens* independente
+    # do stepType.
+    enviar = AsyncMock()
+    monkeypatch.setattr(step_tracker, "enviar_observabilidade", enviar)
+    tracker = step_tracker.StepTracker(conversation_id="conv-1")
+
+    async def cenario():
+        await tracker.on_tool_start(
+            {"name": "listar_ofertas_de_placas"},
+            "{}",
+            run_id="run-tool-ok",
+            metadata={"langgraph_node": "solar_panel_specialist"},
+        )
+        await tracker.on_tool_end("resultado", run_id="run-tool-ok")
+
+    asyncio.run(cenario())
+
+    doc = enviar.await_args.args[0]
+    assert doc["model"] == "n/a"
+    assert doc["tokensIn"] == 0
+    assert doc["tokensOut"] == 0
+    assert doc["tokensTotal"] == 0
+
+
+def test_step_tracker_on_tool_error_registra_falha_de_tool(monkeypatch):
+    enviar = AsyncMock()
+    monkeypatch.setattr(step_tracker, "enviar_observabilidade", enviar)
+    tracker = step_tracker.StepTracker(conversation_id="conv-1")
+
+    async def cenario():
+        await tracker.on_tool_start(
+            {"name": "listar_ofertas_de_placas"},
+            "{}",
+            run_id="run-t",
+            metadata={"langgraph_node": "solar_panel_specialist"},
+        )
+        await tracker.on_tool_error(RuntimeError("mcp indisponivel"), run_id="run-t")
+
+    asyncio.run(cenario())
+
+    doc = enviar.await_args.args[0]
+    assert doc["stepType"] == "tool_call"
+    assert doc["toolName"] == "listar_ofertas_de_placas"
+    assert doc["status"] == "error"
+    assert doc["error"] == "mcp indisponivel"
+    assert doc["model"] == "n/a"
+    assert doc["tokensIn"] == 0
+    assert doc["tokensOut"] == 0
+    assert doc["tokensTotal"] == 0
