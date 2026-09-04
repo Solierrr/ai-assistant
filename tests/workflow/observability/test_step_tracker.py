@@ -2,6 +2,10 @@ import asyncio
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
+import httpx
+from groq import APITimeoutError, RateLimitError
+from httpx import ConnectError, TimeoutException
+
 import src.workflow.observability.step_tracker as step_tracker
 
 
@@ -252,3 +256,86 @@ def test_step_tracker_on_tool_error_registra_falha_de_tool(monkeypatch):
     assert doc["tokensIn"] == 0
     assert doc["tokensOut"] == 0
     assert doc["tokensTotal"] == 0
+
+
+def test_step_tracker_categoriza_rate_limit_do_groq(monkeypatch):
+    enviar = AsyncMock()
+    monkeypatch.setattr(step_tracker, "enviar_observabilidade", enviar)
+    tracker = step_tracker.StepTracker(conversation_id="conv-1")
+
+    request = httpx.Request("POST", "http://groq")
+    response = httpx.Response(429, request=request)
+    erro = RateLimitError("limite de taxa excedido", response=response, body=None)
+
+    asyncio.run(
+        tracker.on_llm_start(
+            {}, ["prompt"], run_id="run-rl", metadata={"langgraph_node": "router"}
+        )
+    )
+    asyncio.run(tracker.on_llm_error(erro, run_id="run-rl"))
+
+    doc = enviar.await_args.args[0]
+    assert doc["status"] == "rate_limited"
+
+
+def test_step_tracker_categoriza_timeout_do_groq(monkeypatch):
+    enviar = AsyncMock()
+    monkeypatch.setattr(step_tracker, "enviar_observabilidade", enviar)
+    tracker = step_tracker.StepTracker(conversation_id="conv-1")
+
+    request = httpx.Request("POST", "http://groq")
+    erro = APITimeoutError(request=request)
+
+    asyncio.run(
+        tracker.on_llm_start(
+            {}, ["prompt"], run_id="run-to", metadata={"langgraph_node": "judge"}
+        )
+    )
+    asyncio.run(tracker.on_llm_error(erro, run_id="run-to"))
+
+    doc = enviar.await_args.args[0]
+    assert doc["status"] == "timeout"
+
+
+def test_step_tracker_categoriza_timeout_de_tool_via_httpx(monkeypatch):
+    enviar = AsyncMock()
+    monkeypatch.setattr(step_tracker, "enviar_observabilidade", enviar)
+    tracker = step_tracker.StepTracker(conversation_id="conv-1")
+
+    erro = TimeoutException("tool nao respondeu a tempo")
+
+    async def cenario():
+        await tracker.on_tool_start(
+            {"name": "listar_ofertas_de_placas"},
+            "{}",
+            run_id="run-tool-to",
+            metadata={"langgraph_node": "solar_panel_specialist"},
+        )
+        await tracker.on_tool_error(erro, run_id="run-tool-to")
+
+    asyncio.run(cenario())
+
+    doc = enviar.await_args.args[0]
+    assert doc["status"] == "timeout"
+
+
+def test_step_tracker_categoriza_connection_error_de_tool_via_httpx(monkeypatch):
+    enviar = AsyncMock()
+    monkeypatch.setattr(step_tracker, "enviar_observabilidade", enviar)
+    tracker = step_tracker.StepTracker(conversation_id="conv-1")
+
+    erro = ConnectError("conexao recusada pelo mcp")
+
+    async def cenario():
+        await tracker.on_tool_start(
+            {"name": "listar_ofertas_de_placas"},
+            "{}",
+            run_id="run-tool-conn",
+            metadata={"langgraph_node": "solar_panel_specialist"},
+        )
+        await tracker.on_tool_error(erro, run_id="run-tool-conn")
+
+    asyncio.run(cenario())
+
+    doc = enviar.await_args.args[0]
+    assert doc["status"] == "connection_error"

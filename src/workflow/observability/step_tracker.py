@@ -2,11 +2,29 @@ import logging
 import time
 from datetime import datetime, timezone
 
+from groq import APITimeoutError, RateLimitError
+from httpx import ConnectError, TimeoutException
 from langchain_core.callbacks import AsyncCallbackHandler
 
 from src.infra.api_messenger.client import enviar_observabilidade
 
 logger = logging.getLogger(__name__)
+
+
+def _categorizar_erro_llm(error: Exception) -> str:
+    if isinstance(error, RateLimitError):
+        return "rate_limited"
+    if isinstance(error, APITimeoutError):
+        return "timeout"
+    return "error"
+
+
+def _categorizar_erro_tool(error: Exception) -> str:
+    if isinstance(error, TimeoutException):
+        return "timeout"
+    if isinstance(error, ConnectError):
+        return "connection_error"
+    return "error"
 
 
 class StepTracker(AsyncCallbackHandler):
@@ -91,7 +109,7 @@ class StepTracker(AsyncCallbackHandler):
                 "tokensOut": 0,
                 "tokensTotal": 0,
                 "latencyMs": round(latency_ms, 1),
-                "status": "error",
+                "status": _categorizar_erro_llm(error),
                 "error": str(error),
             },
         )
@@ -143,7 +161,7 @@ class StepTracker(AsyncCallbackHandler):
                 "tokensOut": 0,
                 "tokensTotal": 0,
                 "latencyMs": round(latency_ms, 1),
-                "status": "error",
+                "status": _categorizar_erro_tool(error),
                 "error": str(error),
             },
         )
