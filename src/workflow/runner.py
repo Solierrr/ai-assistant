@@ -2,7 +2,6 @@ from uuid import uuid4
 
 from langchain_core.messages import HumanMessage
 
-from src.core.config.settings import settings
 from src.core.guardrails.anonymize import anonymize_text
 from src.infra.api_messenger.client import (
     criar_conversa_chatbot,
@@ -39,9 +38,7 @@ async def execute_turn(
         api_conversation_id, anonymized_user_input, user_token
     )
 
-    tracker = StepTracker(
-        conversation_id=api_conversation_id, environment=settings.ENVIRONMENT
-    )
+    tracker = StepTracker(conversation_id=api_conversation_id)
 
     final_state = await workflow.ainvoke(
         {
