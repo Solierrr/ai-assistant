@@ -30,6 +30,49 @@ class ClassificacaoEntrada(BaseModel):
     motivo: str
 
 
+_CATEGORIAS_VALIDAS = frozenset(
+    {
+        "APROVADO",
+        "REDIRECIONAR",
+        "FORA_ESCOPO",
+        "MANIPULACAO",
+        "DADOS_INTERNOS",
+        "INFORMACAO_FALSA",
+    }
+)
+
+
+def _parse_classificacao(texto: str) -> ClassificacaoEntrada:
+    """Converte a resposta textual do Groq no contrato do guardrail."""
+    if not isinstance(texto, str):
+        raise TypeError("Resposta do classificador nao e texto")
+
+    campos: dict[str, str] = {}
+    for linha in texto.splitlines():
+        linha = linha.strip()
+        if not linha:
+            continue
+        if ":" not in linha:
+            raise ValueError("Linha sem marcador no classificador")
+        chave, valor = linha.split(":", 1)
+        chave = chave.strip().upper()
+        valor = valor.strip()
+        if chave not in {"CATEGORIA", "JUSTIFICATIVA"} or chave in campos:
+            raise ValueError("Marcador invalido no classificador")
+        if not valor:
+            raise ValueError("Campo vazio no classificador")
+        campos[chave] = valor
+
+    if set(campos) != {"CATEGORIA", "JUSTIFICATIVA"}:
+        raise ValueError("Campos obrigatorios ausentes no classificador")
+
+    categoria = campos["CATEGORIA"].upper()
+    if categoria not in _CATEGORIAS_VALIDAS:
+        raise ValueError("Categoria desconhecida")
+
+    return ClassificacaoEntrada(categoria=categoria, motivo=campos["JUSTIFICATIVA"])
+
+
 def _blocked_result(
     state: GraphState, category: str, pii_map: dict | None = None
 ) -> dict:
@@ -56,12 +99,11 @@ def input_guardrail_node(state: GraphState, config=None) -> dict:
     formatted_prompt = INPUT_GUARDRAIL_PROMPT.format(mensagem=anonymized_text)
 
     try:
-        classificacao = (
-            llm_groq()
-            .with_structured_output(ClassificacaoEntrada)
-            .invoke([HumanMessage(content=formatted_prompt)], config=config)
+        resposta = llm_groq().invoke(
+            [HumanMessage(content=formatted_prompt)], config=config
         )
-    except (GroqError, ValidationError) as erro:
+        classificacao = _parse_classificacao(resposta.content)
+    except (GroqError, ValidationError, ValueError, TypeError, AttributeError) as erro:
         logger.warning("Falha ao avaliar input_guardrail: %s", erro)
         return _blocked_result(state, "falha_avaliacao_guardrail")
 
