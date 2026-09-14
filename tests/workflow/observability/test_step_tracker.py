@@ -6,6 +6,7 @@ import httpx
 from groq import APITimeoutError, RateLimitError
 from httpx import ConnectError, TimeoutException
 
+import src.core.config.model_pricing as model_pricing
 import src.workflow.observability.step_tracker as step_tracker
 
 
@@ -339,3 +340,52 @@ def test_step_tracker_categoriza_connection_error_de_tool_via_httpx(monkeypatch)
 
     doc = enviar.await_args.args[0]
     assert doc["status"] == "connection_error"
+
+
+def test_step_tracker_calcula_custo_usd_para_modelo_conhecido(monkeypatch):
+    enviar = AsyncMock()
+    monkeypatch.setattr(step_tracker, "enviar_observabilidade", enviar)
+    monkeypatch.setitem(model_pricing.MODEL_PRICING, "modelo-teste", {"in": 1.0, "out": 2.0})
+    tracker = step_tracker.StepTracker(conversation_id="conv-1")
+
+    asyncio.run(
+        tracker.on_llm_start({}, ["prompt"], run_id="run-custo", metadata={"langgraph_node": "router"})
+    )
+    asyncio.run(
+        tracker.on_llm_end(
+            _resposta_llm(model="modelo-teste", tokens_in=1000, tokens_out=500),
+            run_id="run-custo",
+        )
+    )
+
+    doc = enviar.await_args.args[0]
+    # 1000 * 1.0/1k + 500 * 2.0/1k = 1.0 + 1.0
+    assert doc["costUsd"] == 2.0
+
+
+def test_step_tracker_custo_zero_para_modelo_desconhecido(monkeypatch):
+    enviar = AsyncMock()
+    monkeypatch.setattr(step_tracker, "enviar_observabilidade", enviar)
+    tracker = step_tracker.StepTracker(conversation_id="conv-1")
+
+    asyncio.run(
+        tracker.on_llm_start({}, ["prompt"], run_id="run-x", metadata={"langgraph_node": "router"})
+    )
+    asyncio.run(
+        tracker.on_llm_end(_resposta_llm(model="modelo-nunca-visto", tokens_in=1000, tokens_out=500), run_id="run-x")
+    )
+
+    assert enviar.await_args.args[0]["costUsd"] == 0.0
+
+
+def test_step_tracker_tool_call_sempre_custo_zero(monkeypatch):
+    enviar = AsyncMock()
+    monkeypatch.setattr(step_tracker, "enviar_observabilidade", enviar)
+    tracker = step_tracker.StepTracker(conversation_id="conv-1")
+
+    async def cenario():
+        await tracker.on_tool_start({"name": "listar_ofertas_de_placas"}, "{}", run_id="run-t")
+        await tracker.on_tool_end("resultado", run_id="run-t")
+
+    asyncio.run(cenario())
+    assert enviar.await_args.args[0]["costUsd"] == 0.0
