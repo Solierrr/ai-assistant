@@ -6,6 +6,7 @@ from groq import APITimeoutError, RateLimitError
 from httpx import ConnectError, TimeoutException
 from langchain_core.callbacks import AsyncCallbackHandler
 
+from src.core.config.model_pricing import get_pricing
 from src.infra.api_messenger.client import enviar_observabilidade
 
 logger = logging.getLogger(__name__)
@@ -17,6 +18,12 @@ def _categorizar_erro_llm(error: Exception) -> str:
     if isinstance(error, APITimeoutError):
         return "timeout"
     return "error"
+
+
+def _calcular_custo_usd(model: str, tokens_in: int, tokens_out: int) -> float:
+    preco = get_pricing(model)
+    custo = (tokens_in / 1000) * preco["in"] + (tokens_out / 1000) * preco["out"]
+    return round(custo, 6)
 
 
 def _categorizar_erro_tool(error: Exception) -> str:
@@ -82,6 +89,8 @@ class StepTracker(AsyncCallbackHandler):
             tokens_in + tokens_out
         )
 
+        cost_usd = _calcular_custo_usd(model, tokens_in, tokens_out)
+
         await self._salvar(
             node,
             {
@@ -90,6 +99,7 @@ class StepTracker(AsyncCallbackHandler):
                 "tokensIn": tokens_in,
                 "tokensOut": tokens_out,
                 "tokensTotal": tokens_total,
+                "costUsd": cost_usd,
                 "latencyMs": round(latency_ms, 1),
                 "status": "ok",
             },
@@ -108,6 +118,7 @@ class StepTracker(AsyncCallbackHandler):
                 "tokensIn": 0,
                 "tokensOut": 0,
                 "tokensTotal": 0,
+                "costUsd": 0.0,
                 "latencyMs": round(latency_ms, 1),
                 "status": _categorizar_erro_llm(error),
                 "error": str(error),
@@ -140,6 +151,7 @@ class StepTracker(AsyncCallbackHandler):
                 "tokensIn": 0,
                 "tokensOut": 0,
                 "tokensTotal": 0,
+                "costUsd": 0.0,
                 "latencyMs": round(latency_ms, 1),
                 "status": "ok",
             },
@@ -160,6 +172,7 @@ class StepTracker(AsyncCallbackHandler):
                 "tokensIn": 0,
                 "tokensOut": 0,
                 "tokensTotal": 0,
+                "costUsd": 0.0,
                 "latencyMs": round(latency_ms, 1),
                 "status": _categorizar_erro_tool(error),
                 "error": str(error),
