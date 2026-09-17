@@ -23,3 +23,4 @@ faiss-cpu
 pypdf
 certifi
 redis
+pyjwt
