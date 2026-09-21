@@ -34,7 +34,17 @@ def test_router_routes_to_valid_specialist(monkeypatch):
     llm.with_structured_output.assert_not_called()
 
 
-def test_router_routes_to_orchestrator(monkeypatch):
+def test_router_routes_to_solar_calculator(monkeypatch):
+    llm = _mock_llm("solar_calculator")
+    monkeypatch.setattr(router_node, "llm_groq", Mock(return_value=llm))
+
+    result = router_node.router_node(
+        {"messages": [HumanMessage(content="Calcule meu sistema solar")]}
+    )
+
+    assert result == {"route": "solar_calculator", "turn_agents": ["router"]}
+
+
     llm = _mock_llm("orchestrator")
     monkeypatch.setattr(router_node, "llm_groq", Mock(return_value=llm))
     result = router_node.router_node(
