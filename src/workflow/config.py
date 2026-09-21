@@ -7,5 +7,6 @@ SPECIALIST_ROUTES: Final[frozenset[str]] = frozenset(
         "professional_suggester",
         "agency_suggester",
         "solar_panel_specialist",
+        "solar_calculator",
     }
 )

@@ -94,7 +94,7 @@ class StepTracker(AsyncCallbackHandler):
         await self._salvar(
             node,
             {
-                "stepType": "llm_call",
+                "stepType": "LLM_CALL",
                 "model": model,
                 "tokensIn": tokens_in,
                 "tokensOut": tokens_out,
@@ -113,7 +113,7 @@ class StepTracker(AsyncCallbackHandler):
         await self._salvar(
             node,
             {
-                "stepType": "llm_call",
+                "stepType": "LLM_CALL",
                 "model": "desconhecido",
                 "tokensIn": 0,
                 "tokensOut": 0,
@@ -143,7 +143,7 @@ class StepTracker(AsyncCallbackHandler):
         await self._salvar(
             node,
             {
-                "stepType": "tool_call",
+                "stepType": "TOOL_CALL",
                 "toolName": tool_name,
                 # tool_call não usa LLM, mas o DTO do api-messenger exige
                 # esses campos independente do stepType
@@ -166,7 +166,7 @@ class StepTracker(AsyncCallbackHandler):
         await self._salvar(
             node,
             {
-                "stepType": "tool_call",
+                "stepType": "TOOL_CALL",
                 "toolName": tool_name,
                 "model": "n/a",
                 "tokensIn": 0,
