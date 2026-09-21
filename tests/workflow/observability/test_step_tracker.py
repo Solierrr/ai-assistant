@@ -95,7 +95,7 @@ def test_step_tracker_ordem_incrementa_entre_llm_e_tool(monkeypatch):
     doc_tool = enviar.await_args_list[1].args[0]
     assert doc_llm["stepOrder"] == 1
     assert doc_tool["stepOrder"] == 2
-    assert doc_tool["stepType"] == "tool_call"
+    assert doc_tool["stepType"] == "TOOL_CALL"
     assert doc_tool["toolName"] == "listar_ofertas_de_placas"
 
 
@@ -249,7 +249,7 @@ def test_step_tracker_on_tool_error_registra_falha_de_tool(monkeypatch):
     asyncio.run(cenario())
 
     doc = enviar.await_args.args[0]
-    assert doc["stepType"] == "tool_call"
+    assert doc["stepType"] == "TOOL_CALL"
     assert doc["toolName"] == "listar_ofertas_de_placas"
     assert doc["status"] == "error"
     assert doc["error"] == "mcp indisponivel"
