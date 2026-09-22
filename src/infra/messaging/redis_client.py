@@ -26,7 +26,6 @@ def create_redis_client(
         decode_responses=True,
         socket_connect_timeout=5,
         socket_timeout=socket_timeout_seconds,
-        retry_on_timeout=False,
         health_check_interval=0,
         max_connections=max_connections,
     )
