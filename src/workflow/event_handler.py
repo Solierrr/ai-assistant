@@ -1,7 +1,7 @@
 from typing import Any
 
 from src.infra.messaging.event import CHATBOT_MESSAGE_RECEIVED, AgentEvent
-from src.workflow.runner import execute_turn
+from src.workflow.runner import PreparedTurn, execute_prepared_turn
 
 
 def get_required_payload_text(event: AgentEvent, field: str) -> str:
@@ -20,6 +20,9 @@ async def handle_chat_event(
         raise ValueError(f"Tipo do evento não suportado: {event.event_type}")
 
     conversation_id = get_required_payload_text(event, "conversation_id")
+    messenger_conversation_id = get_required_payload_text(
+        event, "messenger_conversation_id"
+    )
     message = get_required_payload_text(event, "message")
 
     if workflow is None:
@@ -27,11 +30,13 @@ async def handle_chat_event(
 
         workflow = compiled_app
 
-    final_state = await execute_turn(
-        conversation_id,
-        message,
+    final_state = await execute_prepared_turn(
+        PreparedTurn(
+            thread_id=conversation_id,
+            messenger_conversation_id=messenger_conversation_id,
+            user_input=message,
+        ),
         workflow,
-        event_id=str(event.event_id),
     )
 
     final_message = final_state["messages"][-1]

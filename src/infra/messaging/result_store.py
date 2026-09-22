@@ -11,23 +11,25 @@ def build_result_key(event_id: UUID | str) -> str:
     return f"{settings.AGENT_RESULT_PREFIX}:{event_id}"
 
 
+def serialize_event_result(
+    event_id: UUID | str,
+    result: Mapping[str, Any],
+) -> str:
+    return json.dumps(
+        {**dict(result), "event_id": str(event_id)},
+        ensure_ascii=False,
+        separators=(",", ":"),
+    )
+
+
 async def save_event_result(
     event_id: UUID | str,
     result: Mapping[str, Any],
 ) -> None:
     redis = get_redis_client()
-    stored_result = {
-        **dict(result),
-        "event_id": str(event_id),
-    }
-
     await redis.set(
         name=build_result_key(event_id),
-        value=json.dumps(
-            stored_result,
-            ensure_ascii=False,
-            separators=(",", ":"),
-        ),
+        value=serialize_event_result(event_id, result),
         ex=settings.AGENT_RESULT_TTL_SECONDS,
     )
 
