@@ -1,25 +1,21 @@
-from unittest.mock import Mock
+from unittest.mock import AsyncMock
 
 from langchain_core.messages import AIMessage, HumanMessage
 
-import src.workflow.nodes.agency_suggester_node as agency_suggester_node
+import src.workflow.nodes.agency_suggester_node as node
 
 
-def test_agency_suggester_node_returns_agent_response(monkeypatch):
-    agent = Mock()
-    agent.invoke.return_value = {
-        "messages": [AIMessage(content="Recomendo buscar um fornecedor regional...")]
-    }
-    monkeypatch.setattr(
-        agency_suggester_node, "build_agent", Mock(return_value=agent)
+async def test_agency_suggester_node_returns_agent_response(monkeypatch):
+    invoke = AsyncMock(
+        return_value={"messages": [AIMessage(content="Fornecedor regional.")]}
     )
+    monkeypatch.setattr(node, "invoke_agent_with_fallback", invoke)
+    state = {"messages": [HumanMessage(content="Preciso de uma agência")]}
 
-    result = agency_suggester_node.agency_suggester_node(
-        {"messages": [HumanMessage(content="Preciso de um instalador em SP")]}
-    )
+    result = await node.agency_suggester_node(state)
 
     assert result["turn_agents"] == ["agency_suggester"]
-    assert result["messages"][0].content.startswith("Recomendo")
-    agent.invoke.assert_called_once_with(
-        {"messages": [HumanMessage(content="Preciso de um instalador em SP")]}
+    assert result["messages"][0].content == "Fornecedor regional."
+    invoke.assert_awaited_once_with(
+        node.AGENCY_SUGGESTER_AGENT, state["messages"], config=None
     )

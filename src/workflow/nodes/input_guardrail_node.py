@@ -1,6 +1,11 @@
+import logging
+
+from groq import GroqError
 from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage
+from pydantic import BaseModel, ValidationError
 
 from src.agents.base.base_prompt import build_system_prompt
+from src.core.config.settings import settings
 from src.core.guardrails.anonymize import anonymize_text
 from src.core.guardrails.injection_patterns import (
     matches_injection_pattern,
@@ -10,6 +15,8 @@ from src.core.guardrails.prompt import _PROMPT_CLASSIFICADOR
 from src.core.llm.llm_groq import llm_groq
 from src.workflow.state import GraphState
 
+logger = logging.getLogger(__name__)
+
 INPUT_GUARDRAIL_PROMPT = build_system_prompt(
     _PROMPT_CLASSIFICADOR, include_communication_standards=False
 )
@@ -17,6 +24,11 @@ INPUT_GUARDRAIL_PROMPT = build_system_prompt(
 BLOCKED_RESPONSE = (
     "Desculpe, não posso processar essa solicitação por políticas de segurança."
 )
+
+
+class ClassificacaoEntrada(BaseModel):
+    categoria: str
+    motivo: str
 
 
 def _blocked_result(
@@ -33,7 +45,7 @@ def _blocked_result(
     }
 
 
-def input_guardrail_node(state: GraphState) -> dict:
+def input_guardrail_node(state: GraphState, config=None) -> dict:
     last_message = state["messages"][-1].content
 
     if matches_injection_pattern(last_message):
@@ -43,13 +55,18 @@ def input_guardrail_node(state: GraphState) -> dict:
 
     anonymized_text, pii_map = anonymize_text(last_message)
     formatted_prompt = INPUT_GUARDRAIL_PROMPT.format(mensagem=anonymized_text)
-    response = llm_groq().invoke([HumanMessage(content=formatted_prompt)]).content
 
-    category = "INDEFINIDO"
-    for line in response.splitlines():
-        if line.upper().startswith("CATEGORIA:"):
-            category = line.split(":", 1)[1].strip().upper()
-            break
+    try:
+        classificacao = (
+            llm_groq(model=settings.GROQ_QUALITY_MODEL)
+            .with_structured_output(ClassificacaoEntrada)
+            .invoke([HumanMessage(content=formatted_prompt)], config=config)
+        )
+    except (GroqError, ValidationError) as erro:
+        logger.warning("Falha ao avaliar input_guardrail: %s", erro)
+        return _blocked_result(state, "falha_avaliacao_guardrail")
+
+    category = classificacao.categoria.strip().upper()
 
     if category != "APROVADO":
         return _blocked_result(state, category, pii_map)

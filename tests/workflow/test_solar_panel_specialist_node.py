@@ -1,25 +1,25 @@
-from unittest.mock import Mock
+from unittest.mock import AsyncMock, Mock
 
 from langchain_core.messages import AIMessage, HumanMessage
 
-import src.workflow.nodes.solar_panel_specialist_node as solar_panel_specialist_node
+import src.workflow.nodes.solar_panel_specialist_node as node
 
 
-def test_solar_panel_specialist_node_returns_agent_response(monkeypatch):
-    agent = Mock()
-    agent.invoke.return_value = {
-        "messages": [AIMessage(content="A placa ideal depende do seu consumo...")]
-    }
-    monkeypatch.setattr(
-        solar_panel_specialist_node, "build_agent", Mock(return_value=agent)
+async def test_solar_panel_specialist_node_returns_agent_response(monkeypatch):
+    tool = Mock(name="listar_ofertas_de_placas")
+    monkeypatch.setattr(node, "get_mcp_tool", AsyncMock(return_value=[tool]))
+    invoke = AsyncMock(
+        return_value={"messages": [AIMessage(content="A placa depende do consumo.")]}
     )
+    monkeypatch.setattr(node, "invoke_agent_with_fallback", invoke)
+    state = {"messages": [HumanMessage(content="Qual placa escolher?")]}
 
-    result = solar_panel_specialist_node.solar_panel_specialist_node(
-        {"messages": [HumanMessage(content="Qual placa solar eu devo escolher?")]}
-    )
+    result = await node.solar_panel_specialist_node(state)
 
     assert result["turn_agents"] == ["solar_panel_specialist"]
-    assert result["messages"][0].content.startswith("A placa")
-    agent.invoke.assert_called_once_with(
-        {"messages": [HumanMessage(content="Qual placa solar eu devo escolher?")]}
+    invoke.assert_awaited_once_with(
+        node.SOLAR_PANEL_SPECIALIST_AGENT,
+        state["messages"],
+        tools=[tool],
+        config=None,
     )
