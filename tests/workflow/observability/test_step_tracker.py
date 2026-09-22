@@ -141,7 +141,7 @@ def test_step_tracker_registra_erro_sem_derrubar_fluxo(monkeypatch):
     asyncio.run(cenario())
 
     doc = enviar.await_args.args[0]
-    assert doc["status"] is False
+    assert doc["status"] == "error"
     assert doc["error"] == "falha no groq"
 
 
@@ -164,4 +164,4 @@ def test_step_tracker_envia_contrato_completo_do_api_messenger(monkeypatch):
     assert doc["tokensIn"] == 10
     assert doc["tokensOut"] == 5
     assert doc["tokensTotal"] == 15
-    assert doc["status"] is True
+    assert doc["status"] == "success"

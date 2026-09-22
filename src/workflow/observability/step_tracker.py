@@ -96,7 +96,7 @@ class StepTracker(AsyncCallbackHandler):
                 "tokensOut": tokens_out,
                 "tokensTotal": tokens_in + tokens_out,
                 "latencyMs": round(latency_ms, 1),
-                "status": True,
+                "status": "success",
             },
         )
 
@@ -114,7 +114,7 @@ class StepTracker(AsyncCallbackHandler):
                 "tokensOut": 0,
                 "tokensTotal": 0,
                 "latencyMs": round(latency_ms, 1),
-                "status": False,
+                "status": "error",
                 "error": str(error),
             },
         )
@@ -144,7 +144,7 @@ class StepTracker(AsyncCallbackHandler):
                 "tokensOut": 0,
                 "tokensTotal": 0,
                 "latencyMs": round(latency_ms, 1),
-                "status": True,
+                "status": "success",
             },
         )
 
@@ -164,7 +164,7 @@ class StepTracker(AsyncCallbackHandler):
                 "tokensOut": 0,
                 "tokensTotal": 0,
                 "latencyMs": round(latency_ms, 1),
-                "status": False,
+                "status": "error",
                 "error": str(error),
             },
         )
