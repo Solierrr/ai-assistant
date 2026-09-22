@@ -32,7 +32,6 @@ def test_create_redis_client_usa_namespace_de_credenciais_dos_agentes(monkeypatc
         decode_responses=True,
         socket_connect_timeout=5,
         socket_timeout=70,
-        retry_on_timeout=False,
         health_check_interval=0,
         max_connections=1,
     )
