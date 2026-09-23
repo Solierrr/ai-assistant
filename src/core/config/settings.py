@@ -1,14 +1,24 @@
-from pydantic import AliasChoices, Field
+from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     MONGO_URI: str = Field(
         "mongodb://localhost:27017",
-        validation_alias=AliasChoices("MONGO_URI", "MONGODB_URI"),
+        validation_alias=AliasChoices("DB_MONGO_URI", "MONGO_URI", "MONGODB_URI"),
     )
-    MONGO_DB: str = "assessor_inteligente"
+    MONGO_DB: str = Field(
+        "assessor_inteligente",
+        validation_alias=AliasChoices("DB_MONGO_AGENTS", "MONGO_DB"),
+    )
     CHECKPOINT_TTL_DIAS: int = 30
+
+    @field_validator("MONGO_URI", mode="before")
+    @classmethod
+    def normalize_mongo_uri(cls, value):
+        if isinstance(value, str) and value and "://" not in value:
+            return f"mongodb+srv://{value}"
+        return value
 
     UPSTASH_REDIS_HOST: str | None = Field(
         None, validation_alias=AliasChoices("UPSTASH_AGENTS_HOST", "UPSTASH_REDIS_HOST")
