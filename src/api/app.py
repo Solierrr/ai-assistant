@@ -4,10 +4,14 @@ from fastapi import FastAPI
 
 from src.api.routes import chat
 from src.core.config.settings import settings
+from src.infra.database.mongo.indexes.user_memory_indexes import (
+    ensure_user_memory_indexes,
+)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    await ensure_user_memory_indexes()
     yield
 
 

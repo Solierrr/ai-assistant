@@ -8,3 +8,5 @@ class GraphState(MessagesState):
     pii_map: dict
     judge_retries: int
     judge_status: str
+    user_id: str | None
+    user_memory: str

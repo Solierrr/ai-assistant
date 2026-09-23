@@ -15,6 +15,9 @@ class Settings(BaseSettings):
 
     API_MESSENGER_URL: str | None = None
 
+    JWT_JWKS_URL: str | None = None
+    JWT_ISSUER: str | None = None
+
     ENVIRONMENT: str = "LOCAL"
 
     TEST_USER_TOKEN: str | None = (

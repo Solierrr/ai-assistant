@@ -11,10 +11,18 @@ _AUTH_HEADER = {"Authorization": "Bearer jwt-de-teste"}
 @contextmanager
 def _client():
     """TestClient com o checkpointer do grafo mockado — ele é construído na
-    hora que `graph.py` é importado (dentro da rota)."""
-    with patch(
-        "src.memory.session.mongo_checkpointer.create_mongo_checkpointer",
-        return_value=InMemorySaver(),
+    hora que `graph.py` é importado (dentro da rota) — e o índice de memória
+    de longo prazo mockado, já que ele roda de verdade no lifespan e senão
+    cada teste tentaria uma conexão real com o Mongo."""
+    with (
+        patch(
+            "src.memory.session.mongo_checkpointer.create_mongo_checkpointer",
+            return_value=InMemorySaver(),
+        ),
+        patch(
+            "src.api.app.ensure_user_memory_indexes",
+            new=AsyncMock(),
+        ),
     ):
         from src.api.app import app
 
