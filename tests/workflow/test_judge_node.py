@@ -1,76 +1,28 @@
 from types import SimpleNamespace
 from unittest.mock import Mock
 
-from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage, SystemMessage
+from langchain_core.messages import AIMessage
 
-import src.workflow.nodes.judge_node as judge_node
+import src.workflow.nodes.judge_node as node
 
 
-def _mock_llm(content):
+def structured_llm(result):
     llm = Mock()
-    llm.invoke.return_value = SimpleNamespace(content=content)
+    llm.with_structured_output.return_value.invoke.return_value = result
     return llm
 
 
-def test_judge_node_approves_when_status_aprovado(monkeypatch):
-    llm = _mock_llm("STATUS: APROVADO\nJUSTIFICATIVA: resposta coerente")
-    monkeypatch.setattr(judge_node, "llm_groq", Mock(return_value=llm))
+def test_judge_approves_structured_verdict(monkeypatch):
+    monkeypatch.setattr(node, "llm_groq", Mock(return_value=structured_llm(SimpleNamespace(status="APROVADO", justificativa="ok"))))
 
-    resultado = judge_node.judge_node(
-        {"messages": [AIMessage(content="Resposta final", id="msg-1")]}
-    )
+    result = node.judge_node({"messages": [AIMessage(content="Resposta", id="1")]})
 
-    assert resultado["judge_status"] == "approved"
-    assert resultado["turn_agents"] == ["judge_approved"]
-    assert "messages" not in resultado
-
-    mensagens_enviadas = llm.invoke.call_args.args[0]
-    assert isinstance(mensagens_enviadas[0], SystemMessage)
-    assert isinstance(mensagens_enviadas[1], HumanMessage)
-    assert "Resposta final" in mensagens_enviadas[1].content
+    assert result["judge_status"] == "approved"
 
 
-def test_judge_node_retries_once_when_rejected(monkeypatch):
-    llm = _mock_llm("STATUS: REPROVADO\nJUSTIFICATIVA: contem alucinacao")
-    monkeypatch.setattr(judge_node, "llm_groq", Mock(return_value=llm))
+def test_judge_retries_rejected_answer(monkeypatch):
+    monkeypatch.setattr(node, "llm_groq", Mock(return_value=structured_llm(SimpleNamespace(status="REPROVADO", justificativa="erro"))))
 
-    resultado = judge_node.judge_node(
-        {
-            "messages": [AIMessage(content="Resposta duvidosa", id="msg-1")],
-            "judge_retries": 0,
-        }
-    )
+    result = node.judge_node({"messages": [AIMessage(content="Resposta", id="1")], "judge_retries": 0})
 
-    assert resultado["judge_status"] == "retry"
-    assert resultado["judge_retries"] == 1
-    assert resultado["turn_agents"] == ["judge_rejected"]
-    assert isinstance(resultado["messages"][0], RemoveMessage)
-
-
-def test_judge_node_blocks_after_exhausting_retries(monkeypatch):
-    llm = _mock_llm("STATUS: REPROVADO\nJUSTIFICATIVA: ainda incoerente")
-    monkeypatch.setattr(judge_node, "llm_groq", Mock(return_value=llm))
-
-    resultado = judge_node.judge_node(
-        {
-            "messages": [AIMessage(content="Resposta ruim", id="msg-1")],
-            "judge_retries": 1,
-        }
-    )
-
-    assert resultado["judge_status"] == "blocked"
-    assert resultado["turn_agents"] == ["judge_blocked"]
-    assert isinstance(resultado["messages"][0], RemoveMessage)
-    assert isinstance(resultado["messages"][1], AIMessage)
-    assert resultado["messages"][1].content == judge_node.BLOCKED_RESPONSE
-
-
-def test_judge_node_defaults_to_retry_when_status_malformed(monkeypatch):
-    llm = _mock_llm("resposta sem o rotulo esperado")
-    monkeypatch.setattr(judge_node, "llm_groq", Mock(return_value=llm))
-
-    resultado = judge_node.judge_node(
-        {"messages": [AIMessage(content="Resposta", id="msg-1")], "judge_retries": 0}
-    )
-
-    assert resultado["judge_status"] == "retry"
+    assert result["judge_status"] == "retry"

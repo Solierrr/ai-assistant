@@ -8,8 +8,8 @@ client = TestClient(app)
 def test_health_returns_ok_when_settings_present(monkeypatch):
     monkeypatch.setattr("src.api.app.settings.GOOGLE_API_KEY", "fake-key")
     monkeypatch.setattr("src.api.app.settings.GROQ_API_KEY", "fake-key")
-    monkeypatch.setattr("src.api.app.settings.UPSTASH_REDIS_HOST", "redis.test")
-    monkeypatch.setattr("src.api.app.settings.UPSTASH_REDIS_PASSWORD", "token")
+    monkeypatch.setattr("src.api.app.settings.UPSTASH_AGENTS_HOST", "redis.test")
+    monkeypatch.setattr("src.api.app.settings.UPSTASH_AGENTS_PASSWORD", "secret")
 
     response = client.get("/health")
 
@@ -20,8 +20,8 @@ def test_health_returns_ok_when_settings_present(monkeypatch):
 def test_health_reports_missing_settings(monkeypatch):
     monkeypatch.setattr("src.api.app.settings.GOOGLE_API_KEY", None)
     monkeypatch.setattr("src.api.app.settings.GROQ_API_KEY", None)
-    monkeypatch.setattr("src.api.app.settings.UPSTASH_REDIS_HOST", None)
-    monkeypatch.setattr("src.api.app.settings.UPSTASH_REDIS_PASSWORD", None)
+    monkeypatch.setattr("src.api.app.settings.UPSTASH_AGENTS_HOST", None)
+    monkeypatch.setattr("src.api.app.settings.UPSTASH_AGENTS_PASSWORD", None)
 
     response = client.get("/health")
 
@@ -30,5 +30,5 @@ def test_health_reports_missing_settings(monkeypatch):
     assert body["status"] == "atencao"
     assert "GOOGLE_API_KEY" in body["missing_settings"]
     assert "GROQ_API_KEY" in body["missing_settings"]
-    assert "UPSTASH_REDIS_HOST" in body["missing_settings"]
-    assert "UPSTASH_REDIS_PASSWORD" in body["missing_settings"]
+    assert "UPSTASH_AGENTS_HOST" in body["missing_settings"]
+    assert "UPSTASH_AGENTS_PASSWORD" in body["missing_settings"]

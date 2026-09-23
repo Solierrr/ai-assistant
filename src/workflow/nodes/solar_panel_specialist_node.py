@@ -1,17 +1,23 @@
 from langchain_core.messages import AIMessage
 
-from src.agents.base.base_agent import build_agent
+from src.agents.base.base_agent import invoke_agent_with_fallback
 from src.agents.specialist.solar_panel_specialist.solar_panel_specialist_prompt import (
     SOLAR_PANEL_SPECIALIST_AGENT,
 )
-from src.workflow.nodes.context import messages_ending_with_user
+from src.infra.mcp.client import get_mcp_tool
+from src.workflow.nodes.context import messages_with_summary
 from src.workflow.state import GraphState
 from src.workflow.turn_tracking import append_turn_agent
 
 
-def solar_panel_specialist_node(state: GraphState) -> dict:
-    agent = build_agent(SOLAR_PANEL_SPECIALIST_AGENT)
-    result = agent.invoke({"messages": messages_ending_with_user(state)})
+async def solar_panel_specialist_node(state: GraphState, config=None) -> dict:
+    tools = await get_mcp_tool("listar_ofertas_de_placas")
+    result = await invoke_agent_with_fallback(
+        SOLAR_PANEL_SPECIALIST_AGENT,
+        messages_with_summary(state),
+        tools=tools,
+        config=config,
+    )
     last_message = result["messages"][-1]
 
     return {

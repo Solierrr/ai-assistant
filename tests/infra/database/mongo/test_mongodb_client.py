@@ -151,5 +151,7 @@ def test_checkpointer_uses_configured_database(monkeypatch):
     mongo_saver.assert_called_once_with(
         client=client,
         db_name="configured_database",
-        collection_name="checkpoints_conversas",
+        checkpoint_collection_name="checkpoints_conversas",
+        writes_collection_name="checkpoints_conversas_writes",
+        ttl=mongo_checkpointer.settings.CHECKPOINT_TTL_DIAS * 24 * 60 * 60,
     )

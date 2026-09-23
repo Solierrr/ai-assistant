@@ -1,77 +1,46 @@
-from unittest.mock import Mock
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage, SystemMessage
 
+import src.workflow.nodes.orchestrator_node as node
 from src.agents.base.system_prompt import (
     SYSTEM_CORE_COMMUNICATION,
     SYSTEM_CORE_SECURITY,
 )
 from src.agents.specialist.orchestrator.orchestrator_prompt import ORCHESTRATOR_AGENT
-import src.workflow.nodes.orchestrator_node as orchestrator_node
 
 
-def test_orchestrator_node_uses_prompt_and_fallback(monkeypatch):
-    gemini = Mock()
-    groq = Mock()
-    llm_com_fallback = Mock()
-    llm_com_fallback.invoke.return_value = AIMessage(
-        content="Resposta final consolidada"
-    )
-    gemini.with_fallbacks.return_value = llm_com_fallback
-    monkeypatch.setattr(orchestrator_node, "llm_gemini", Mock(return_value=gemini))
-    monkeypatch.setattr(orchestrator_node, "llm_groq", Mock(return_value=groq))
+async def test_orchestrator_node_uses_prompt_and_provider_fallback(monkeypatch):
+    invoke = AsyncMock(return_value=SimpleNamespace(content="Resposta consolidada"))
+    monkeypatch.setattr(node, "invoke_model_with_fallback", invoke)
+    state = {
+        "messages": [HumanMessage(content="Olá")],
+        "turn_agents": ["solar_panel_specialist"],
+    }
 
-    resultado = orchestrator_node.orchestrator_node(
-        {
-            "messages": [HumanMessage(content="Olá")],
-            "turn_agents": ["solar_panel_specialist"],
-        }
-    )
+    result = await node.orchestrator_node(state)
 
-    assert resultado["turn_agents"] == ["solar_panel_specialist", "orchestrator"]
-    assert resultado["messages"][0].content == "Resposta final consolidada"
-    gemini.with_fallbacks.assert_called_once_with([groq])
-    mensagens = llm_com_fallback.invoke.call_args.args[0]
-    assert isinstance(mensagens[0], SystemMessage)
-    assert SYSTEM_CORE_SECURITY.strip() in mensagens[0].content
-    assert SYSTEM_CORE_COMMUNICATION.strip() in mensagens[0].content
-    assert ORCHESTRATOR_AGENT.strip() in mensagens[0].content
-    assert isinstance(mensagens[1], HumanMessage)
+    assert result["turn_agents"] == ["solar_panel_specialist", "orchestrator"]
+    assert result["messages"][0].content == "Resposta consolidada"
+    messages = invoke.await_args.args[0]
+    assert isinstance(messages[0], SystemMessage)
+    assert SYSTEM_CORE_SECURITY.strip() in messages[0].content
+    assert SYSTEM_CORE_COMMUNICATION.strip() in messages[0].content
+    assert ORCHESTRATOR_AGENT.strip() in messages[0].content
 
 
-def test_orchestrator_node_keeps_summary_in_context(monkeypatch):
-    gemini = Mock()
-    groq = Mock()
-    llm_com_fallback = Mock()
-    llm_com_fallback.invoke.return_value = AIMessage(content="Resposta")
-    gemini.with_fallbacks.return_value = llm_com_fallback
-    monkeypatch.setattr(orchestrator_node, "llm_gemini", Mock(return_value=gemini))
-    monkeypatch.setattr(orchestrator_node, "llm_groq", Mock(return_value=groq))
+async def test_orchestrator_node_keeps_summary_in_context(monkeypatch):
+    invoke = AsyncMock(return_value=SimpleNamespace(content="Resposta"))
+    monkeypatch.setattr(node, "invoke_model_with_fallback", invoke)
 
-    orchestrator_node.orchestrator_node(
+    await node.orchestrator_node(
         {
             "messages": [HumanMessage(content="Qual a garantia?")],
-            "summary": "O usuário quer informações sobre painéis solares.",
+            "summary": "O usuário quer informações sobre painéis.",
         }
     )
 
-    mensagens = llm_com_fallback.invoke.call_args.args[0]
-    assert "Resumo" in mensagens[1].content
-    assert isinstance(mensagens[2], HumanMessage)
-
-
-def test_orchestrator_node_accepts_content_blocks(monkeypatch):
-    gemini = Mock()
-    llm_com_fallback = Mock()
-    llm_com_fallback.invoke.return_value = AIMessage(
-        content=[{"type": "text", "text": "Resposta em blocos"}]
-    )
-    gemini.with_fallbacks.return_value = llm_com_fallback
-    monkeypatch.setattr(orchestrator_node, "llm_gemini", Mock(return_value=gemini))
-    monkeypatch.setattr(orchestrator_node, "llm_groq", Mock(return_value=Mock()))
-
-    resultado = orchestrator_node.orchestrator_node(
-        {"messages": [HumanMessage(content="Olá")]}
-    )
-
-    assert resultado["messages"][0].content == "Resposta em blocos"
+    messages = invoke.await_args.args[0]
+    assert "Resumo" in messages[1].content
+    assert isinstance(messages[2], HumanMessage)

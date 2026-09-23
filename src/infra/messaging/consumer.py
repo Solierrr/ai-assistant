@@ -2,6 +2,7 @@ import asyncio
 import logging
 import socket
 from collections.abc import Iterable, Mapping
+from datetime import datetime, timezone
 from time import monotonic
 from uuid import uuid4
 
@@ -48,13 +49,35 @@ async def process_stream_message(
     redis = get_redis_client()
     event = AgentEvent.from_stream_fields(fields)
 
+    started_at = datetime.now(timezone.utc)
+    queue_wait_ms = max(0, round((started_at - event.timestamp).total_seconds() * 1_000))
     await save_event_result(
         event.event_id,
-        {"status": "processing"},
+        {
+            "status": "processing",
+            "started_at": started_at.isoformat(),
+            "queue_wait_ms": queue_wait_ms,
+        },
     )
 
-    result = await handle_chat_event(event)
-    await save_event_result(event.event_id, result)
+    async with asyncio.timeout(settings.AGENT_PROCESSING_TIMEOUT_SECONDS):
+        result = await handle_chat_event(event)
+
+    completed_at = datetime.now(timezone.utc)
+    processing_time_ms = max(
+        0, round((completed_at - started_at).total_seconds() * 1_000)
+    )
+    await save_event_result(
+        event.event_id,
+        {
+            **result,
+            "started_at": started_at.isoformat(),
+            "completed_at": completed_at.isoformat(),
+            "queue_wait_ms": queue_wait_ms,
+            "processing_time_ms": processing_time_ms,
+            "total_time_ms": queue_wait_ms + processing_time_ms,
+        },
+    )
 
     await redis.xack(
         settings.AGENT_STREAM_CHATBOT,
@@ -63,49 +86,22 @@ async def process_stream_message(
     )
 
 
-async def get_delivery_count(message_id: str) -> int:
-    redis = get_redis_client()
-    pending = await redis.xpending_range(
-        name=settings.AGENT_STREAM_CHATBOT,
-        groupname=settings.AGENT_STREAM_GROUP,
-        min=message_id,
-        max=message_id,
-        count=1,
-    )
-
-    if not pending or pending[0]["message_id"] != message_id:
-        return 1
-    return int(pending[0]["times_delivered"])
-
-
 async def handle_processing_failure(
     message_id: str,
     fields: Mapping[str, str],
 ) -> None:
     redis = get_redis_client()
-    attempts = await get_delivery_count(message_id)
     event_id = fields.get("event_id")
 
-    if attempts < settings.AGENT_CONSUMER_MAX_ATTEMPTS:
-        if event_id:
-            await save_event_result(
-                event_id,
-                {
-                    "status": "retrying",
-                    "attempts": attempts,
-                    "max_attempts": settings.AGENT_CONSUMER_MAX_ATTEMPTS,
-                },
-            )
-        return
-
     if event_id:
+        completed_at = datetime.now(timezone.utc)
         await save_event_result(
             event_id,
             {
                 "status": "failed",
                 "error": "Não foi possível processar a mensagem.",
-                "attempts": attempts,
-                "max_attempts": settings.AGENT_CONSUMER_MAX_ATTEMPTS,
+                "error_type": "RuntimeError",
+                "completed_at": completed_at.isoformat(),
             },
         )
 
@@ -159,6 +155,8 @@ async def recover_pending_messages(consumer_name: str) -> None:
 async def run_consumer(
     stop_event: asyncio.Event,
     consumer_name: str | None = None,
+    *,
+    recover_pending: bool = True,
 ) -> None:
     read_timeout_seconds = settings.AGENT_CONSUMER_BLOCK_MS / 1_000 + 5
     redis = create_redis_client(
@@ -174,7 +172,7 @@ async def run_consumer(
         while not stop_event.is_set():
             current_time = monotonic()
 
-            if current_time - last_claim_at >= claim_interval_seconds:
+            if recover_pending and current_time - last_claim_at >= claim_interval_seconds:
                 last_claim_at = current_time
 
                 try:

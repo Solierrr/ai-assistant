@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
@@ -5,14 +6,12 @@ from pydantic import BaseModel, Field, field_validator
 
 
 class ChatRequest(BaseModel):
-    """O que o cliente envia no POST /chat."""
+    """Mensagem enviada ao chatbot."""
 
-    conversation_id: str = Field(
-        ...,
-        min_length=1,
-        examples=["b2b-empresa-42"],
+    conversation_id: str = Field(..., min_length=1, examples=["b2b-empresa-42"])
+    message: str = Field(
+        ..., min_length=1, max_length=8_000, examples=["Preciso de um instalador em SP"]
     )
-    message: str = Field(..., min_length=1, examples=["Preciso de um instalador em SP"])
 
     @field_validator("conversation_id", "message")
     @classmethod
@@ -22,30 +21,27 @@ class ChatRequest(BaseModel):
         return value
 
 
-class ChatResponse(BaseModel):
-    """Contrato legado mantido temporariamente para compatibilidade de imports."""
-
-    response: str
-    specialists_used: list[str] = Field(default_factory=list)
-    workflow_steps: list[str] = Field(default_factory=list)
-
-
 class ChatAcceptedResponse(BaseModel):
-    """Confirma que a mensagem foi adicionada à fila."""
+    """Confirma o recebimento da mensagem pela fila."""
 
     event_id: UUID
     status: Literal["queued"] = "queued"
 
 
 class ChatResultResponse(BaseModel):
-    """Representa o estado e o resultado temporário do processamento."""
+    """Estado temporário do processamento assíncrono."""
 
     event_id: UUID
-    status: Literal["queued", "processing", "retrying", "completed", "failed"]
+    status: Literal["queued", "processing", "completed", "failed"]
     conversation_id: str | None = None
     response: str | None = None
     error: str | None = None
-    attempts: int | None = Field(default=None, ge=1)
-    max_attempts: int | None = Field(default=None, ge=1)
+    error_type: str | None = None
+    queued_at: datetime | None = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    queue_wait_ms: int | None = Field(default=None, ge=0)
+    processing_time_ms: int | None = Field(default=None, ge=0)
+    total_time_ms: int | None = Field(default=None, ge=0)
     specialists_used: list[str] = Field(default_factory=list)
     workflow_steps: list[str] = Field(default_factory=list)

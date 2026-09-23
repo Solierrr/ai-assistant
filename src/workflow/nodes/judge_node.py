@@ -4,9 +4,11 @@ from langchain_core.messages import (
     RemoveMessage,
     SystemMessage,
 )
+from pydantic import BaseModel
 
 from src.agents.base.base_prompt import build_system_prompt
 from src.agents.specialist.judge.judge_prompt import JUDGE_AGENT
+from src.core.config.settings import settings
 from src.core.llm.llm_groq import llm_groq
 from src.workflow.state import GraphState
 from src.workflow.turn_tracking import append_turn_agent
@@ -21,19 +23,23 @@ BLOCKED_RESPONSE = (
 )
 
 
-def judge_node(state: GraphState) -> dict:
+class VereditoJuiz(BaseModel):
+    status: str
+    justificativa: str
+
+
+def judge_node(state: GraphState, config=None) -> dict:
     last_message = state["messages"][-1].content
     messages_with_context = [
         SystemMessage(content=JUDGE_PROMPT),
         HumanMessage(content=f"Resposta a ser auditada:\n\n{last_message}"),
     ]
-    output = llm_groq().invoke(messages_with_context).content
-
-    status = "REPROVADO"
-    for line in output.splitlines():
-        if line.upper().startswith("STATUS:"):
-            status = line.split(":", 1)[1].strip().upper()
-            break
+    veredito = (
+        llm_groq(model=settings.GROQ_QUALITY_MODEL)
+        .with_structured_output(VereditoJuiz)
+        .invoke(messages_with_context, config=config)
+    )
+    status = veredito.status.strip().upper()
 
     retries = state.get("judge_retries", 0)
 

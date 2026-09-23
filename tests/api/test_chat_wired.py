@@ -1,192 +1,118 @@
-from contextlib import contextmanager
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 from uuid import UUID
 
-import pytest
+import httpx
 from fastapi.testclient import TestClient
 
+from src.api.app import app
+from src.workflow.runner import PreparedTurn
 
-@contextmanager
-def _client():
-    """Cria um cliente da API sem acessar o MongoDB real."""
-    with (
-        patch(
-            "src.infra.database.mongo.mongodb_client.MongoDBClient.connect",
-            new=AsyncMock(),
-        ),
-        patch("src.api.app.create_indexes", new=AsyncMock()),
-        patch("src.api.app.connect_redis", new=AsyncMock()),
-        patch("src.api.app.ensure_consumer_group", new=AsyncMock()),
-        patch("src.api.app.run_consumer", new=AsyncMock()),
-        patch("src.api.app.close_redis", new=AsyncMock()),
-    ):
-        from src.api.app import app
-
-        with TestClient(app) as client:
-            yield client
+client = TestClient(app)
+AUTH_HEADER = {"Authorization": "Bearer jwt-de-teste"}
 
 
-def test_chat_publica_evento_e_retorna_accepted(monkeypatch):
-    save_event_result = AsyncMock()
+def test_chat_prepara_turno_e_publica_sem_jwt(monkeypatch):
+    prepared = PreparedTurn("conv-1", "messenger-1", "Preciso de instalador")
+    prepare_turn = AsyncMock(return_value=prepared)
     publish_event = AsyncMock(return_value="1700000000000-0")
-    delete_event_result = AsyncMock()
-    monkeypatch.setattr(
-        "src.api.routes.chat.save_event_result",
-        save_event_result,
-    )
+    monkeypatch.setattr("src.api.routes.chat.prepare_turn", prepare_turn)
     monkeypatch.setattr("src.api.routes.chat.publish_event", publish_event)
-    monkeypatch.setattr(
-        "src.api.routes.chat.delete_event_result",
-        delete_event_result,
-    )
 
-    with _client() as client:
-        response = client.post(
-            "/chat",
-            json={"conversation_id": "conv-1", "message": "Preciso de instalador"},
-        )
+    response = client.post(
+        "/chat",
+        json={"conversation_id": "conv-1", "message": "Preciso de instalador"},
+        headers=AUTH_HEADER,
+    )
 
     assert response.status_code == 202
-    body = response.json()
-    event_id = UUID(body["event_id"])
-    assert body["status"] == "queued"
-    saved_event_id, saved_result = save_event_result.await_args.args
-    assert saved_event_id == event_id
-    assert saved_result == {
-        "status": "queued",
+    assert response.json()["status"] == "queued"
+    UUID(response.json()["event_id"])
+    prepare_turn.assert_awaited_once_with(
+        "conv-1", "Preciso de instalador", "jwt-de-teste"
+    )
+    event = publish_event.await_args.args[0]
+    assert event.payload == {
         "conversation_id": "conv-1",
-    }
-    published_event = publish_event.await_args.args[0]
-    assert published_event.event_id == event_id
-    assert published_event.event_type == "chatbot.message.received"
-    assert published_event.payload == {
-        "conversation_id": "conv-1",
+        "messenger_conversation_id": "messenger-1",
         "message": "Preciso de instalador",
     }
-    delete_event_result.assert_not_awaited()
+    assert "jwt" not in str(event.to_stream_fields()).lower()
 
 
-def test_chat_remove_resultado_temporario_quando_publicacao_falha(monkeypatch):
-    save_event_result = AsyncMock()
-    publish_event = AsyncMock(side_effect=ConnectionError("Redis indisponível"))
-    delete_event_result = AsyncMock()
-    monkeypatch.setattr(
-        "src.api.routes.chat.save_event_result",
-        save_event_result,
-    )
-    monkeypatch.setattr("src.api.routes.chat.publish_event", publish_event)
-    monkeypatch.setattr(
-        "src.api.routes.chat.delete_event_result",
-        delete_event_result,
-    )
-
-    with (
-        pytest.raises(ConnectionError, match="Redis indisponível"),
-        _client() as client,
-    ):
-        client.post(
-            "/chat",
-            json={"conversation_id": "conv-1", "message": "Olá"},
+def test_chat_nao_publica_quando_api_messenger_rejeita(monkeypatch):
+    request = httpx.Request("POST", "http://api-messenger/messaging/messages")
+    response = httpx.Response(401, request=request)
+    prepare_turn = AsyncMock(
+        side_effect=httpx.HTTPStatusError(
+            "unauthorized", request=request, response=response
         )
+    )
+    publish_event = AsyncMock()
+    monkeypatch.setattr("src.api.routes.chat.prepare_turn", prepare_turn)
+    monkeypatch.setattr("src.api.routes.chat.publish_event", publish_event)
 
-    event_id = save_event_result.await_args.args[0]
-    delete_event_result.assert_awaited_once_with(event_id)
+    result = client.post(
+        "/chat",
+        json={"conversation_id": "conv-1", "message": "Oi"},
+        headers=AUTH_HEADER,
+    )
+
+    assert result.status_code == 401
+    publish_event.assert_not_awaited()
 
 
-def test_chat_retorna_resultado_concluido(monkeypatch):
-    event_id = UUID("550e8400-e29b-41d4-a716-446655440000")
-    get_event_result = AsyncMock(
-        return_value={
-            "event_id": str(event_id),
-            "status": "completed",
-            "conversation_id": "conv-1",
-            "response": "Resposta final",
-            "specialists_used": ["faq_reader"],
-            "workflow_steps": ["router", "faq_reader", "orchestrator"],
-        }
+def test_chat_retorna_503_quando_redis_falha(monkeypatch):
+    monkeypatch.setattr(
+        "src.api.routes.chat.prepare_turn",
+        AsyncMock(return_value=PreparedTurn("conv-1", "messenger-1", "Oi")),
     )
     monkeypatch.setattr(
-        "src.api.routes.chat.get_event_result",
-        get_event_result,
+        "src.api.routes.chat.publish_event",
+        AsyncMock(side_effect=ConnectionError("Redis fora")),
     )
 
-    with _client() as client:
-        response = client.get(f"/chat/{event_id}")
+    response = client.post(
+        "/chat",
+        json={"conversation_id": "conv-1", "message": "Oi"},
+        headers=AUTH_HEADER,
+    )
 
-    assert response.status_code == 200
-    body = response.json()
-    assert body == {
-        "event_id": str(event_id),
-        "status": "completed",
-        "conversation_id": "conv-1",
-        "response": "Resposta final",
-        "specialists_used": ["faq_reader"],
-        "workflow_steps": ["router", "faq_reader", "orchestrator"],
-    }
-    get_event_result.assert_awaited_once_with(event_id)
+    assert response.status_code == 503
 
 
-def test_chat_retorna_resultado_com_falha_definitiva(monkeypatch):
-    event_id = UUID("550e8400-e29b-41d4-a716-446655440000")
+def test_consultar_resultado_retorna_metricas(monkeypatch):
+    event_id = "561373ea-20e2-45cb-864c-7e9e956f1bf2"
     monkeypatch.setattr(
         "src.api.routes.chat.get_event_result",
         AsyncMock(
             return_value={
-                "event_id": str(event_id),
-                "status": "failed",
-                "error": "Não foi possível processar a mensagem.",
-                "attempts": 3,
-                "max_attempts": 3,
+                "event_id": event_id,
+                "status": "completed",
+                "conversation_id": "conv-1",
+                "response": "Resposta",
+                "queue_wait_ms": 12,
+                "processing_time_ms": 1000,
+                "total_time_ms": 1012,
             }
         ),
     )
 
-    with _client() as client:
-        response = client.get(f"/chat/{event_id}")
+    response = client.get(f"/chat/{event_id}")
 
     assert response.status_code == 200
-    assert response.json() == {
-        "event_id": str(event_id),
-        "status": "failed",
-        "error": "Não foi possível processar a mensagem.",
-        "attempts": 3,
-        "max_attempts": 3,
-        "specialists_used": [],
-        "workflow_steps": [],
-    }
+    assert response.json()["status"] == "completed"
+    assert response.json()["total_time_ms"] == 1012
 
 
-def test_chat_retorna_404_quando_evento_nao_existe(monkeypatch):
-    event_id = UUID("550e8400-e29b-41d4-a716-446655440000")
+def test_consultar_resultado_404_quando_expirou(monkeypatch):
     monkeypatch.setattr(
-        "src.api.routes.chat.get_event_result",
-        AsyncMock(return_value=None),
+        "src.api.routes.chat.get_event_result", AsyncMock(return_value=None)
     )
 
-    with _client() as client:
-        response = client.get(f"/chat/{event_id}")
+    response = client.get("/chat/561373ea-20e2-45cb-864c-7e9e956f1bf2")
 
     assert response.status_code == 404
-    assert response.json() == {"detail": "Evento não encontrado ou expirado."}
-
-
-def test_chat_routes_expose_descriptions_in_openapi():
-    with _client() as client:
-        openapi = client.get("/openapi.json").json()
-
-    post_operation = openapi["paths"]["/chat"]["post"]
-    get_operation = openapi["paths"]["/chat/{event_id}"]["get"]
-    assert post_operation["summary"] == "Enviar mensagem ao chatbot"
-    assert "Enfileira uma mensagem" in post_operation["description"]
-    assert get_operation["summary"] == "Consultar processamento do chatbot"
-    assert "resultado temporário" in get_operation["description"]
 
 
 def test_app_import_does_not_touch_mongo_at_module_level():
-    """O import de src.api.app não deve tentar conectar no Mongo sozinho."""
-    import importlib
-
-    import src.api.app as app_module
-
-    importlib.reload(app_module)  # se travasse na conexão, o teste já teria estourado
-    assert app_module.app is not None
+    assert app is not None

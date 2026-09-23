@@ -17,7 +17,6 @@ def test_agent_event_gera_identificador_timestamp_e_valores_padrao():
     assert isinstance(event.event_id, UUID)
     assert event.timestamp.utcoffset() == timedelta(0)
     assert event.version == 1
-    assert event.metadata == {}
 
 
 def test_agent_event_gera_identificadores_unicos():
@@ -31,7 +30,6 @@ def test_to_stream_fields_serializa_todos_os_valores_como_texto():
     event = AgentEvent(
         event_type="chatbot.message.received",
         payload={"message": "Olá", "attempt": 1, "active": True},
-        metadata={"source": "api"},
     )
 
     fields = event.to_stream_fields()
@@ -42,13 +40,11 @@ def test_to_stream_fields_serializa_todos_os_valores_como_texto():
         "timestamp",
         "version",
         "payload",
-        "metadata",
     }
     assert all(isinstance(value, str) for value in fields.values())
     assert fields["event_type"] == "chatbot.message.received"
     assert fields["version"] == "1"
     assert json.loads(fields["payload"]) == event.payload
-    assert json.loads(fields["metadata"]) == event.metadata
     assert "Olá" in fields["payload"]
     assert ": " not in fields["payload"]
 
@@ -60,26 +56,11 @@ def test_from_stream_fields_reconstroi_evento_original():
             "conversation_id": "conversation-123",
             "message": "Preciso de ajuda",
         },
-        metadata={"correlation_id": "correlation-456"},
     )
 
     restored = AgentEvent.from_stream_fields(original.to_stream_fields())
 
     assert restored == original
-
-
-def test_from_stream_fields_aceita_metadata_ausente():
-    original = AgentEvent(
-        event_type="chatbot.message.received",
-        payload={"message": "Ola"},
-    )
-    fields = original.to_stream_fields()
-    fields.pop("metadata")
-
-    restored = AgentEvent.from_stream_fields(fields)
-
-    assert restored.metadata == {}
-
 
 def test_agent_event_rejeita_tipo_vazio():
     with pytest.raises(ValidationError):
