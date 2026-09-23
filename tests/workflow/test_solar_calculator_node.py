@@ -11,7 +11,7 @@ def test_solar_calculator_node_returns_agent_response(monkeypatch):
     tool.name = "calcular_sistema_solar"
     monkeypatch.setattr(
         solar_calculator_node,
-        "get_billscanner_tools",
+        "get_solar_calculator_tools",
         Mock(return_value=[tool]),
     )
 

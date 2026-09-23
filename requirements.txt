@@ -9,6 +9,7 @@ langchain-mcp-adapters==0.3.2
 mcp==1.29.1
 pymongo
 pydantic-settings
+python-dotenv
 httpx
 pytest
 pytest-cov

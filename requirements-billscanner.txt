@@ -1,3 +1,0 @@
-# Install separately with:
-# python -m pip install --no-deps -r requirements-billscanner.txt
--e ../mcp-billscanner
