@@ -50,6 +50,7 @@ async def test_invoke_agent_nao_faz_fallback_para_erro_de_negocio(monkeypatch):
     primary = Mock(ainvoke=AsyncMock(side_effect=ValueError("payload inválido")))
     build_agent = Mock(return_value=primary)
     monkeypatch.setattr(base_agent, "build_agent", build_agent)
+    monkeypatch.setattr(base_agent, "llm_gemini", Mock(return_value="gemini"))
 
     try:
         await base_agent.invoke_agent_with_fallback("PROMPT", ["mensagem"])

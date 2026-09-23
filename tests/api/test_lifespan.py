@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
@@ -10,6 +10,7 @@ def test_lifespan_connects_dependencies_and_manages_consumers():
     mock_ensure_consumer_group = AsyncMock()
     mock_run_consumer = AsyncMock()
     mock_close_redis = AsyncMock()
+    mock_warm_llm_clients = Mock()
 
     with (
         patch(
@@ -23,6 +24,7 @@ def test_lifespan_connects_dependencies_and_manages_consumers():
             new=mock_ensure_consumer_group,
         ),
         patch("src.api.app.run_consumer", new=mock_run_consumer),
+        patch("src.api.app.warm_llm_clients", new=mock_warm_llm_clients),
         patch("src.api.app.close_redis", new=mock_close_redis),
         patch("src.api.app.settings.AGENT_CONSUMER_COUNT", 2),
     ):
@@ -37,6 +39,7 @@ def test_lifespan_connects_dependencies_and_manages_consumers():
     mock_create_indexes.assert_awaited_once()
     mock_connect_redis.assert_awaited_once()
     mock_ensure_consumer_group.assert_awaited_once()
+    mock_warm_llm_clients.assert_called_once_with()
     assert mock_run_consumer.await_count == 2
     mock_close_redis.assert_awaited_once()
 
