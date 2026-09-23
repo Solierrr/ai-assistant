@@ -5,7 +5,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     MONGO_URI: str = Field(
         "mongodb://localhost:27017",
-        validation_alias=AliasChoices("MONGO_URI", "MONGODB_URI"),
+        validation_alias=AliasChoices("DB_MONGO_URI", "MONGO_URI", "MONGODB_URI"),
     )
     MONGO_DB: str = Field(
         "assessor_inteligente",
