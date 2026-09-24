@@ -11,9 +11,20 @@ from src.api.schemas.chat import (
     ChatRequest,
     ChatResultResponse,
 )
+from src.core.guardrails.anonymize import (
+    deanonymize_text,
+    redact_unresolved_pii_tokens,
+)
 from src.infra.messaging.event import CHATBOT_MESSAGE_RECEIVED, AgentEvent
 from src.infra.messaging.publisher import publish_event
 from src.infra.messaging.result_store import get_event_result
+from src.infra.privacy.pii_map_store import (
+    delete_pii_mappings,
+    get_pii_mappings,
+    is_result_owner,
+    owner_token_digest,
+    save_result_owner,
+)
 from src.workflow.runner import prepare_turn
 
 logger = logging.getLogger(__name__)
@@ -103,9 +114,11 @@ async def conversar(
             "conversation_id": prepared_turn.thread_id,
             "messenger_conversation_id": prepared_turn.messenger_conversation_id,
             "message": prepared_turn.user_input,
+            "pii_owner_scope": prepared_turn.pii_owner_scope,
         },
     )
     try:
+        await save_result_owner(event.event_id, user_token)
         await publish_event(
             event,
             {
@@ -135,12 +148,47 @@ async def conversar(
         }
     },
 )
-async def consultar_resultado(event_id: UUID) -> ChatResultResponse:
+async def consultar_resultado(
+    event_id: UUID,
+    credentials: Annotated[
+        HTTPAuthorizationCredentials | None,
+        Security(bearer_auth),
+    ] = None,
+) -> ChatResultResponse:
     """Retorna o estado atual e as métricas temporárias de um evento."""
+    user_token = _extract_user_token(credentials)
+    if not await is_result_owner(event_id, user_token):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Resultado indisponível para este usuário.",
+        )
     result = await get_event_result(event_id)
     if result is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Evento não encontrado ou expirado.",
         )
+    conversation_id = result.get("conversation_id")
+    if result.get("response") and conversation_id:
+        mappings = await get_pii_mappings(
+            conversation_id, owner_token_digest(user_token)
+        )
+        response = deanonymize_text(result["response"], mappings)
+        result["response"] = redact_unresolved_pii_tokens(response, mappings)
     return ChatResultResponse.model_validate(result)
+
+
+@router.delete(
+    "/chat/{conversation_id}/pii-map",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Encerrar sessão e remover o mapa PII temporário",
+)
+async def encerrar_sessao(
+    conversation_id: str,
+    credentials: Annotated[
+        HTTPAuthorizationCredentials | None,
+        Security(bearer_auth),
+    ] = None,
+) -> None:
+    user_token = _extract_user_token(credentials)
+    await delete_pii_mappings(conversation_id, owner_token_digest(user_token))

@@ -6,7 +6,6 @@ from pydantic import BaseModel, ValidationError
 
 from src.agents.base.base_prompt import build_system_prompt
 from src.core.config.settings import settings
-from src.core.guardrails.anonymize import deanonymize_text
 from src.core.guardrails.prompt import _PROMPT_COMPLIANCE
 from src.core.llm.llm_groq import llm_groq
 from src.workflow.state import GraphState
@@ -36,7 +35,9 @@ def output_guardrail_node(state: GraphState, config=None) -> dict:
             .with_structured_output(RevisaoCompliance)
             .invoke([HumanMessage(content=formatted_prompt)], config=config)
         )
-        final_text = deanonymize_text(revisao.resposta_revisada, state["pii_map"])
+        # Keep known PII tokens in the workflow result. The HTTP result route
+        # restores them only after checking the submitting user's bearer token.
+        final_text = revisao.resposta_revisada
     except (GroqError, ValidationError) as erro:
         # fail-closed: se o guardrail nao conseguiu revisar, nao deixa a
         # resposta nao revisada sair - troca por uma mensagem generica
