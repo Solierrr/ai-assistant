@@ -14,7 +14,8 @@ def test_startup_connects_mongodb_and_creates_indexes(monkeypatch):
 
     monkeypatch.setattr(main.MongoDBClient, "connect", fake_connect)
     monkeypatch.setattr(main, "create_indexes", fake_create_indexes)
+    monkeypatch.setattr(main, "connect_core_redis", fake_connect)
 
     asyncio.run(main.startup())
 
-    assert calls == ["connect", "create_indexes"]
+    assert calls == ["connect", "create_indexes", "connect"]

@@ -7,6 +7,9 @@ def test_lifespan_connects_dependencies_and_manages_consumers():
     mock_connect = AsyncMock()
     mock_create_indexes = AsyncMock()
     mock_connect_redis = AsyncMock()
+    mock_connect_core_redis = AsyncMock()
+    mock_close_core_redis = AsyncMock()
+    mock_validate_pii_key = Mock()
     mock_ensure_consumer_group = AsyncMock()
     mock_run_consumer = AsyncMock()
     mock_close_redis = AsyncMock()
@@ -19,6 +22,9 @@ def test_lifespan_connects_dependencies_and_manages_consumers():
         ),
         patch("src.api.app.create_indexes", new=mock_create_indexes),
         patch("src.api.app.connect_redis", new=mock_connect_redis),
+        patch("src.api.app.connect_core_redis", new=mock_connect_core_redis),
+        patch("src.api.app.close_core_redis", new=mock_close_core_redis),
+        patch("src.api.app.validate_pii_encryption_key", new=mock_validate_pii_key),
         patch(
             "src.api.app.ensure_consumer_group",
             new=mock_ensure_consumer_group,
@@ -38,6 +44,9 @@ def test_lifespan_connects_dependencies_and_manages_consumers():
     mock_connect.assert_awaited_once()
     mock_create_indexes.assert_awaited_once()
     mock_connect_redis.assert_awaited_once()
+    mock_connect_core_redis.assert_awaited_once()
+    mock_close_core_redis.assert_awaited_once()
+    mock_validate_pii_key.assert_called_once_with()
     mock_ensure_consumer_group.assert_awaited_once()
     mock_warm_llm_clients.assert_called_once_with()
     assert mock_run_consumer.await_count == 2
@@ -54,6 +63,9 @@ def test_lifespan_closes_redis_when_group_setup_fails():
         ),
         patch("src.api.app.create_indexes", new=AsyncMock()),
         patch("src.api.app.connect_redis", new=AsyncMock()),
+        patch("src.api.app.connect_core_redis", new=AsyncMock()),
+        patch("src.api.app.close_core_redis", new=AsyncMock()),
+        patch("src.api.app.validate_pii_encryption_key", new=Mock()),
         patch(
             "src.api.app.ensure_consumer_group",
             new=AsyncMock(side_effect=ConnectionError("Redis indisponível")),

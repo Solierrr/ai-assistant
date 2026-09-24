@@ -20,5 +20,6 @@ langchain-text-splitters
 faiss-cpu
 pypdf
 redis
+cryptography
 certifi
 pytest-asyncio
