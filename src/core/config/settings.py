@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     GOOGLE_API_KEY: str | None = None
     GROQ_API_KEY: str | None = None
 
+    QDRANT_URL: str | None = None
+    QDRANT_API_KEY: str | None = None
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 

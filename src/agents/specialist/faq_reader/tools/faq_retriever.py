@@ -1,6 +1,10 @@
+import logging
+
 from langchain_core.tools import tool
 
-from src.rag.vectorstore.faiss_store import load_faq_index
+from src.rag.vectorstore.qdrant_store import load_faq_index
+
+logger = logging.getLogger(__name__)
 
 
 @tool
@@ -9,8 +13,12 @@ def faq_retriever(query: str) -> str:
     dúvidas de usuários sobre o produto, planos, garantia, instalação etc.
     Use sempre que a pergunta parecer ser sobre política, procedimento ou
     informação institucional do FAQ."""
-    index = load_faq_index()
-    resultados = index.similarity_search(query, k=3)
+    try:
+        index = load_faq_index()
+        resultados = index.similarity_search(query, k=3)
+    except Exception as erro: 
+        logger.warning("Falha ao consultar o FAQ: %s", erro)
+        return "FAQ indisponível no momento."
 
     if not resultados:
         return "Nenhum trecho relevante encontrado no FAQ."
