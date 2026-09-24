@@ -19,6 +19,7 @@ async def test_save_event_result_salva_json_com_ttl(monkeypatch):
     redis = Mock()
     redis.set = AsyncMock(return_value=True)
     monkeypatch.setattr(result_store, "get_redis_client", Mock(return_value=redis))
+    monkeypatch.setattr(result_store, "touch_result_owner", AsyncMock())
     event_id = UUID("550e8400-e29b-41d4-a716-446655440000")
 
     await result_store.save_event_result(
@@ -46,6 +47,7 @@ async def test_save_event_result_preserva_caracteres_unicode(monkeypatch):
     redis = Mock()
     redis.set = AsyncMock(return_value=True)
     monkeypatch.setattr(result_store, "get_redis_client", Mock(return_value=redis))
+    monkeypatch.setattr(result_store, "touch_result_owner", AsyncMock())
 
     await result_store.save_event_result(
         "event-123",
