@@ -1,12 +1,12 @@
+import certifi
 from pymongo import MongoClient
 
 from src.core.config.settings import settings
-from src.infra.database.mongo.client_options import build_mongo_client_options
 
 
 def get_mongodb_client() -> MongoClient:
-    """Return a MongoDB Atlas or local client instance."""
-    return MongoClient(
-        settings.MONGO_URI,
-        **build_mongo_client_options(settings.MONGO_URI),
-    )
+    """Return a MongoDB client with TLS settings appropriate to its URI."""
+    if settings.MONGO_URI.startswith("mongodb+srv://"):
+        return MongoClient(settings.MONGO_URI, tlsCAFile=certifi.where())
+
+    return MongoClient(settings.MONGO_URI)

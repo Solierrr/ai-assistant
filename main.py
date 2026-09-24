@@ -1,25 +1,19 @@
 import asyncio
 from uuid import uuid4
 
-from dotenv import load_dotenv
-
 from src.core.config.settings import settings
-from src.infra.database.mongo.indexes.create_indexes import create_indexes
-from src.infra.database.mongo.mongodb_client import MongoDBClient
-from src.infra.privacy.core_redis_client import connect_core_redis
 from src.workflow.runner import execute_turn
-
-load_dotenv()
-
-
-async def startup():
-    await MongoDBClient.connect()
-    await create_indexes()
-    await connect_core_redis()
 
 
 async def run_chat():
     from src.workflow.graph.graph import compiled_app
+
+    if not settings.TEST_USER_TOKEN:
+        print(
+            "Defina TEST_USER_TOKEN no .env com um JWT válido (mock-idp ou "
+            "api-auth) antes de rodar."
+        )
+        return
 
     conversation_id = str(uuid4())
 
@@ -39,9 +33,8 @@ async def run_chat():
                 conversation_id,
                 user_input,
                 compiled_app,
-                settings.TEST_USER_TOKEN or "",
+                user_token=settings.TEST_USER_TOKEN,
             )
-
             print(f"{final_state['messages'][-1].content}")
 
         except (ConnectionError, TimeoutError, ValueError, RuntimeError) as error:
@@ -49,9 +42,4 @@ async def run_chat():
 
 
 if __name__ == "__main__":
-
-    async def main():
-        await startup()
-        await run_chat()
-
-    asyncio.run(main())
+    asyncio.run(run_chat())

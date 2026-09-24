@@ -1,180 +1,118 @@
-from unittest.mock import AsyncMock
-from uuid import UUID
+from contextlib import contextmanager
+from unittest.mock import AsyncMock, patch
 
-import httpx
 from fastapi.testclient import TestClient
+from langchain_core.messages import AIMessage
+from langgraph.checkpoint.memory import InMemorySaver
 
-from src.api.app import app
-from src.workflow.runner import PreparedTurn
-
-client = TestClient(app)
-AUTH_HEADER = {"Authorization": "Bearer jwt-de-teste"}
+_AUTH_HEADER = {"Authorization": "Bearer jwt-de-teste"}
 
 
-def test_chat_prepara_turno_e_publica_sem_jwt(monkeypatch):
-    prepared = PreparedTurn("conv-1", "messenger-1", "Preciso de instalador")
-    prepare_turn = AsyncMock(return_value=prepared)
-    publish_event = AsyncMock(return_value="1700000000000-0")
-    monkeypatch.setattr("src.api.routes.chat.prepare_turn", prepare_turn)
-    monkeypatch.setattr("src.api.routes.chat.publish_event", publish_event)
-    save_result_owner = AsyncMock()
-    monkeypatch.setattr("src.api.routes.chat.save_result_owner", save_result_owner)
+@contextmanager
+def _client():
+    """TestClient com o checkpointer do grafo mockado — ele é construído na
+    hora que `graph.py` é importado (dentro da rota) — e o índice de memória
+    de longo prazo mockado, já que ele roda de verdade no lifespan e senão
+    cada teste tentaria uma conexão real com o Mongo."""
+    with (
+        patch(
+            "src.memory.session.mongo_checkpointer.create_mongo_checkpointer",
+            return_value=InMemorySaver(),
+        ),
+        patch(
+            "src.api.app.ensure_user_memory_indexes",
+            new=AsyncMock(),
+        ),
+    ):
+        from src.api.app import app
 
-    response = client.post(
-        "/chat",
-        json={"conversation_id": "conv-1", "message": "Preciso de instalador"},
-        headers=AUTH_HEADER,
+        with TestClient(app) as client:
+            yield client
+
+
+def test_chat_calls_execute_turn_and_maps_response(monkeypatch):
+    fake_message = AIMessage(
+        content="Recomendo um instalador na região.",
+        additional_kwargs={
+            "specialists_used": ["professional_suggester"],
+            "workflow_steps": ["router", "professional_suggester", "orchestrator"],
+        },
     )
+    fake_final_state = {"messages": [fake_message]}
 
-    assert response.status_code == 202
-    assert response.json()["status"] == "queued"
-    UUID(response.json()["event_id"])
-    prepare_turn.assert_awaited_once_with(
-        "conv-1", "Preciso de instalador", "jwt-de-teste"
-    )
-    event = publish_event.await_args.args[0]
-    assert event.payload == {
-        "conversation_id": "conv-1",
-        "messenger_conversation_id": "messenger-1",
-        "message": "Preciso de instalador",
-        "pii_owner_scope": "local",
-    }
-    save_result_owner.assert_awaited_once()
-    assert "jwt" not in str(event.to_stream_fields()).lower()
+    mock_execute_turn = AsyncMock(return_value=fake_final_state)
+    monkeypatch.setattr("src.api.routes.chat.execute_turn", mock_execute_turn)
 
-
-def test_chat_nao_publica_quando_api_messenger_rejeita(monkeypatch):
-    request = httpx.Request("POST", "http://api-messenger/messaging/messages")
-    response = httpx.Response(401, request=request)
-    prepare_turn = AsyncMock(
-        side_effect=httpx.HTTPStatusError(
-            "unauthorized", request=request, response=response
+    with _client() as client:
+        response = client.post(
+            "/chat",
+            json={"conversation_id": "conv-1", "message": "Preciso de instalador"},
+            headers=_AUTH_HEADER,
         )
-    )
-    publish_event = AsyncMock()
-    monkeypatch.setattr("src.api.routes.chat.prepare_turn", prepare_turn)
-    monkeypatch.setattr("src.api.routes.chat.publish_event", publish_event)
-
-    result = client.post(
-        "/chat",
-        json={"conversation_id": "conv-1", "message": "Oi"},
-        headers=AUTH_HEADER,
-    )
-
-    assert result.status_code == 401
-    publish_event.assert_not_awaited()
-
-
-def test_chat_retorna_503_quando_redis_falha(monkeypatch):
-    monkeypatch.setattr(
-        "src.api.routes.chat.prepare_turn",
-        AsyncMock(return_value=PreparedTurn("conv-1", "messenger-1", "Oi")),
-    )
-    monkeypatch.setattr(
-        "src.api.routes.chat.publish_event",
-        AsyncMock(side_effect=ConnectionError("Redis fora")),
-    )
-    monkeypatch.setattr(
-        "src.api.routes.chat.save_result_owner", AsyncMock()
-    )
-
-    response = client.post(
-        "/chat",
-        json={"conversation_id": "conv-1", "message": "Oi"},
-        headers=AUTH_HEADER,
-    )
-
-    assert response.status_code == 503
-
-
-def test_consultar_resultado_retorna_metricas(monkeypatch):
-    event_id = "561373ea-20e2-45cb-864c-7e9e956f1bf2"
-    monkeypatch.setattr(
-        "src.api.routes.chat.get_event_result",
-        AsyncMock(
-            return_value={
-                "event_id": event_id,
-                "status": "completed",
-                "conversation_id": "conv-1",
-                "response": "Resposta",
-                "queue_wait_ms": 12,
-                "processing_time_ms": 1000,
-                "total_time_ms": 1012,
-            }
-        ),
-    )
-    monkeypatch.setattr(
-        "src.api.routes.chat.is_result_owner", AsyncMock(return_value=True)
-    )
-    monkeypatch.setattr(
-        "src.api.routes.chat.owner_token_digest", lambda token: "owner-hash"
-    )
-    monkeypatch.setattr(
-        "src.api.routes.chat.get_pii_mappings", AsyncMock(return_value={})
-    )
-
-    response = client.get(f"/chat/{event_id}", headers=AUTH_HEADER)
 
     assert response.status_code == 200
-    assert response.json()["status"] == "completed"
-    assert response.json()["total_time_ms"] == 1012
+    body = response.json()
+    assert body["response"] == "Recomendo um instalador na região."
+    assert body["specialists_used"] == ["professional_suggester"]
+    assert body["workflow_steps"] == [
+        "router",
+        "professional_suggester",
+        "orchestrator",
+    ]
+
+    mock_execute_turn.assert_awaited_once()
+    called_args = mock_execute_turn.call_args.args
+    called_kwargs = mock_execute_turn.call_args.kwargs
+    assert called_args[0] == "conv-1"
+    assert called_args[1] == "Preciso de instalador"
+    assert called_kwargs["user_token"] == "jwt-de-teste"
 
 
-def test_consultar_resultado_404_quando_expirou(monkeypatch):
-    monkeypatch.setattr(
-        "src.api.routes.chat.is_result_owner", AsyncMock(return_value=True)
-    )
-    monkeypatch.setattr(
-        "src.api.routes.chat.get_event_result", AsyncMock(return_value=None)
-    )
+def test_chat_falls_back_to_turn_agents_when_no_metadata(monkeypatch):
+    fake_message = AIMessage(content="Resposta direta.", additional_kwargs={})
+    fake_final_state = {
+        "messages": [fake_message],
+        "turn_agents": ["router_direct_response"],
+    }
 
-    response = client.get(
-        "/chat/561373ea-20e2-45cb-864c-7e9e956f1bf2", headers=AUTH_HEADER
-    )
+    mock_execute_turn = AsyncMock(return_value=fake_final_state)
+    monkeypatch.setattr("src.api.routes.chat.execute_turn", mock_execute_turn)
 
-    assert response.status_code == 404
+    with _client() as client:
+        response = client.post(
+            "/chat",
+            json={"conversation_id": "conv-2", "message": "Oi"},
+            headers=_AUTH_HEADER,
+        )
 
-
-def test_consultar_resultado_exige_o_bearer_do_dono(monkeypatch):
-    is_owner = AsyncMock(return_value=False)
-    monkeypatch.setattr("src.api.routes.chat.is_result_owner", is_owner)
-    response = client.get(
-        "/chat/561373ea-20e2-45cb-864c-7e9e956f1bf2",
-        headers={"Authorization": "Bearer outro-jwt"},
-    )
-    assert response.status_code == 403
+    body = response.json()
+    assert body["specialists_used"] == []
+    assert body["workflow_steps"] == ["router_direct_response"]
 
 
-def test_consultar_resultado_restaura_token_so_para_o_dono(monkeypatch):
-    event_id = "561373ea-20e2-45cb-864c-7e9e956f1bf2"
-    token = "[PII_CPF_0123456789abcdef0123456789abcdef]"
-    monkeypatch.setattr(
-        "src.api.routes.chat.is_result_owner", AsyncMock(return_value=True)
-    )
-    monkeypatch.setattr(
-        "src.api.routes.chat.get_event_result",
-        AsyncMock(
-            return_value={
-                "event_id": event_id,
-                "status": "completed",
-                "conversation_id": "conv-1",
-                "response": f"CPF recebido: {token}",
-            }
-        ),
-    )
-    monkeypatch.setattr(
-        "src.api.routes.chat.owner_token_digest", lambda bearer: "owner-hash"
-    )
-    monkeypatch.setattr(
-        "src.api.routes.chat.get_pii_mappings",
-        AsyncMock(return_value={token: "123.456.789-00"}),
-    )
+def test_chat_401_sem_header_authorization():
+    with _client() as client:
+        response = client.post(
+            "/chat", json={"conversation_id": "conv-3", "message": "Oi"}
+        )
+    assert response.status_code == 401  # authorization é Header(None) opcional; 401 é levantado na rota
 
-    response = client.get(f"/chat/{event_id}", headers=AUTH_HEADER)
 
-    assert response.status_code == 200
-    assert response.json()["response"] == "CPF recebido: 123.456.789-00"
+def test_chat_401_header_mal_formado():
+    with _client() as client:
+        response = client.post(
+            "/chat",
+            json={"conversation_id": "conv-3", "message": "Oi"},
+            headers={"Authorization": "jwt-sem-bearer"},
+        )
+    assert response.status_code == 401
 
 
 def test_app_import_does_not_touch_mongo_at_module_level():
-    assert app is not None
+    """O import de src.api.app não deve tentar conectar no Mongo sozinho."""
+    import importlib
+
+    import src.api.app as app_module
+
+    importlib.reload(app_module)
+    assert app_module.app is not None

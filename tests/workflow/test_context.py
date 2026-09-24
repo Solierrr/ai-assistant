@@ -1,45 +1,40 @@
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage, SystemMessage
 
-from src.workflow.nodes.context import messages_ending_with_user
-
-
-def test_messages_ending_with_user_preserves_valid_history():
-    user_message = HumanMessage(content="Preciso de um instalador")
-
-    messages = messages_ending_with_user({"messages": [user_message]})
-
-    assert messages == [user_message]
+from src.workflow.nodes.context import messages_with_summary
 
 
-def test_messages_ending_with_user_adds_latest_request_after_model_turn():
-    messages = messages_ending_with_user(
-        {
-            "messages": [
-                HumanMessage(content="Primeira pergunta"),
-                AIMessage(content="Resposta anterior"),
-                HumanMessage(content="Pergunta atual"),
-                AIMessage(content="Contexto de um especialista"),
-            ]
-        }
-    )
+def test_messages_with_summary_sem_memoria_nem_resumo_retorna_so_mensagens():
+    state = {"messages": [HumanMessage(content="oi")]}
 
-    assert isinstance(messages[-1], HumanMessage)
-    assert messages[-1].content == "Pergunta atual"
-    assert messages[-2].content == "Contexto de um especialista"
+    resultado = messages_with_summary(state)
+
+    assert resultado == [HumanMessage(content="oi")]
 
 
-def test_messages_ending_with_user_keeps_summary_as_context():
-    messages = messages_ending_with_user(
-        {
-            "summary": "Resumo anterior",
-            "messages": [
-                HumanMessage(content="Pergunta atual"),
-                AIMessage(content="Contexto interno"),
-            ],
-        }
-    )
+def test_messages_with_summary_injeta_memoria_do_usuario():
+    state = {
+        "messages": [HumanMessage(content="oi")],
+        "user_memory": "- mora em SP\n- é instalador",
+    }
 
-    assert isinstance(messages[0], SystemMessage)
-    assert "Resumo anterior" in messages[0].content
-    assert isinstance(messages[-1], HumanMessage)
-    assert messages[-1].content == "Pergunta atual"
+    resultado = messages_with_summary(state)
+
+    assert len(resultado) == 2
+    assert isinstance(resultado[0], SystemMessage)
+    assert "mora em SP" in resultado[0].content
+    assert resultado[1] == HumanMessage(content="oi")
+
+
+def test_messages_with_summary_injeta_memoria_e_resumo_nessa_ordem():
+    state = {
+        "messages": [HumanMessage(content="oi")],
+        "user_memory": "- mora em SP",
+        "summary": "Conversa anterior sobre orçamento",
+    }
+
+    resultado = messages_with_summary(state)
+
+    assert len(resultado) == 3
+    assert "mora em SP" in resultado[0].content
+    assert "Conversa anterior sobre orçamento" in resultado[1].content
+    assert resultado[2] == HumanMessage(content="oi")

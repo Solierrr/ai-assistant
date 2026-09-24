@@ -15,9 +15,6 @@ def fake_groq_api_key(monkeypatch):
     qualquer chamada de rede. No CI não existe GROQ_API_KEY configurada,
     então precisamos de uma key falsa só pra passar da validação."""
     monkeypatch.setattr(settings, "GROQ_API_KEY", "fake-key-for-tests")
-    llm_groq.cache_clear()
-    yield
-    llm_groq.cache_clear()
 
 
 def test_default_nao_usa_modelo_descontinuado():
@@ -31,7 +28,7 @@ def test_default_nao_usa_modelo_descontinuado():
 
 def test_default_e_o_modelo_recomendado_pelo_groq():
     instancia = llm_groq()
-    assert instancia.model_name == settings.GROQ_FAST_MODEL
+    assert instancia.model_name == "openai/gpt-oss-120b"
 
 
 def test_ainda_aceita_sobrescrever_o_modelo():

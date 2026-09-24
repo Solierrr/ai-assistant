@@ -6,11 +6,8 @@ from src.memory.session import mongo_checkpointer
 
 def test_create_mongo_checkpointer_usa_nome_de_colecao_correto(monkeypatch):
     chamadas = []
-    monkeypatch.setattr(
-        mongo_checkpointer, "get_mongodb_client", lambda: "cliente-fake"
-    )
+    monkeypatch.setattr(mongo_checkpointer, "get_mongodb_client", lambda: "cliente-fake")
     monkeypatch.setattr(mongo_checkpointer.settings, "CHECKPOINT_TTL_DIAS", 30)
-    monkeypatch.setattr(mongo_checkpointer.settings, "MONGO_DB", "assessor_inteligente")
     monkeypatch.setattr(
         mongo_checkpointer,
         "MongoDBSaver",
@@ -30,9 +27,7 @@ def test_create_mongo_checkpointer_usa_nome_de_colecao_correto(monkeypatch):
 
 
 def test_create_mongo_checkpointer_retry_sucede_na_terceira_tentativa(monkeypatch):
-    monkeypatch.setattr(
-        mongo_checkpointer, "get_mongodb_client", lambda: "cliente-fake"
-    )
+    monkeypatch.setattr(mongo_checkpointer, "get_mongodb_client", lambda: "cliente-fake")
     monkeypatch.setattr(mongo_checkpointer.time, "sleep", lambda segundos: None)
 
     chamadas = {"n": 0}
@@ -56,9 +51,7 @@ def test_create_mongo_checkpointer_retry_sucede_na_terceira_tentativa(monkeypatc
 def test_create_mongo_checkpointer_relanca_erro_se_todas_as_tentativas_falharem(
     monkeypatch,
 ):
-    monkeypatch.setattr(
-        mongo_checkpointer, "get_mongodb_client", lambda: "cliente-fake"
-    )
+    monkeypatch.setattr(mongo_checkpointer, "get_mongodb_client", lambda: "cliente-fake")
     monkeypatch.setattr(mongo_checkpointer.time, "sleep", lambda segundos: None)
 
     chamadas = {"n": 0}

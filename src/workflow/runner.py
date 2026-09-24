@@ -1,117 +1,102 @@
 import asyncio
-from dataclasses import dataclass
+import logging
 from uuid import uuid4
 
 from langchain_core.messages import HumanMessage
 
-from src.core.config.settings import settings
-from src.core.guardrails.anonymize import (
-    anonymize_text,
-    redact_unmapped_pii,
-    redact_unresolved_pii_tokens,
-)
+from src.core.guardrails.anonymize import anonymize_text
+from src.core.security.jwt import decode_user_id
 from src.infra.api_messenger.client import (
     criar_conversa_chatbot,
     enviar_mensagem_chatbot,
     enviar_mensagem_usuario,
 )
-from src.infra.privacy.pii_map_store import (
-    get_pii_mappings,
-    owner_token_digest,
-    retain_pii_mappings,
+from src.infra.database.mongo.repositories.user_memory_repository import (
+    get_user_memory,
+    upsert_user_memory,
 )
+from src.workflow.memory.memory_extraction import extrair_fatos_atualizados
 from src.workflow.observability.step_tracker import StepTracker
 
-
-@dataclass(frozen=True)
-class PreparedTurn:
-    thread_id: str
-    messenger_conversation_id: str
-    user_input: str
-    pii_owner_scope: str = "local"
-
+logger = logging.getLogger(__name__)
 
 _conversations_por_thread: dict[str, str] = {}
-_conversation_locks: dict[str, asyncio.Lock] = {}
+_background_tasks: set[asyncio.Task] = set()
+
+
+async def _atualizar_memoria(
+    user_id: str, fatos_existentes: list[str], ultima_troca: str
+) -> None:
+    try:
+        novos_fatos = await extrair_fatos_atualizados(fatos_existentes, ultima_troca)
+        await upsert_user_memory(user_id, novos_fatos)
+    except Exception:
+        logger.warning(
+            "Falha ao atualizar memória de longo prazo (user_id=%s)",
+            user_id,
+            exc_info=True,
+        )
+
+
+def _agendar_atualizacao_memoria(
+    user_id: str, fatos_existentes: list[str], ultima_troca: str
+) -> None:
+    task = asyncio.create_task(
+        _atualizar_memoria(user_id, fatos_existentes, ultima_troca)
+    )
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
 
 
 async def _get_or_create_conversation_id(thread_id: str, user_token: str) -> str:
+    """Reaproveita, por thread_id, a conversa já aberta no api-messenger;
+    cria uma nova na primeira mensagem do turno."""
     conversation_id = _conversations_por_thread.get(thread_id)
-    if conversation_id is not None:
-        return conversation_id
-
-    lock = _conversation_locks.setdefault(thread_id, asyncio.Lock())
-    async with lock:
-        conversation_id = _conversations_por_thread.get(thread_id)
-        if conversation_id is None:
-            conversation_id = await criar_conversa_chatbot(
-                "lead", {}, user_token=user_token
-            )
-            _conversations_por_thread[thread_id] = conversation_id
-        return conversation_id
+    if conversation_id is None:
+        conversation_id = await criar_conversa_chatbot(
+            "lead", {}, user_token=user_token
+        )
+        _conversations_por_thread[thread_id] = conversation_id
+    return conversation_id
 
 
-async def prepare_turn(
-    thread_id: str, user_input: str, user_token: str
-) -> PreparedTurn:
-    anonymized_user_input, mappings = anonymize_text(user_input)
-    cpf_mappings = {
-        token: value
-        for token, value in mappings.items()
-        if token.startswith("[PII_CPF_")
-    }
-    owner_scope = owner_token_digest(user_token)
-    messenger_conversation_id = await _get_or_create_conversation_id(
-        thread_id, user_token
-    )
-    await retain_pii_mappings(thread_id, owner_scope, cpf_mappings)
-    await enviar_mensagem_usuario(
-        messenger_conversation_id,
-        anonymized_user_input,
-        user_token,
-    )
-    return PreparedTurn(
-        thread_id=thread_id,
-        messenger_conversation_id=messenger_conversation_id,
-        user_input=anonymized_user_input,
-        pii_owner_scope=owner_scope,
-    )
-
-
-async def execute_prepared_turn(
-    prepared_turn: PreparedTurn,
-    workflow,
+async def execute_turn(
+    conversation_id: str, user_input: str, workflow, user_token: str
 ) -> dict:
     turn_id = str(uuid4())
-    tracker = StepTracker(
-        conversation_id=prepared_turn.messenger_conversation_id,
-        environment=settings.ENVIRONMENT,
+    anonymized_user_input, _ = anonymize_text(user_input)
+    api_conversation_id = await _get_or_create_conversation_id(
+        conversation_id, user_token
     )
-    pii_mappings = await get_pii_mappings(
-        prepared_turn.thread_id, prepared_turn.pii_owner_scope
+
+    await enviar_mensagem_usuario(
+        api_conversation_id, anonymized_user_input, user_token
     )
-    try:
-        final_state = await workflow.ainvoke(
-            {
-                "messages": [HumanMessage(content=prepared_turn.user_input)],
-                "route": "",
-                "pii_map": {},
-                "turn_agents": [],
-                "judge_retries": 0,
-            },
-            config={
-                "configurable": {"thread_id": prepared_turn.thread_id},
-                "callbacks": [tracker],
-            },
-        )
-    finally:
-        await tracker.flush()
+
+    tracker = StepTracker(conversation_id=api_conversation_id)
+
+    user_id = await asyncio.to_thread(decode_user_id, user_token)
+    fatos_existentes = await get_user_memory(user_id) if user_id else []
+    user_memory = "\n".join(f"- {fato}" for fato in fatos_existentes)
+
+    final_state = await workflow.ainvoke(
+        {
+            "messages": [HumanMessage(content=user_input)],
+            "route": "",
+            "pii_map": {},
+            "turn_agents": [],
+            "judge_retries": 0,
+            "user_id": user_id,
+            "user_memory": user_memory,
+        },
+        config={
+            "configurable": {"thread_id": conversation_id},
+            "callbacks": [tracker],
+        },
+    )
 
     final_message = final_state["messages"][-1]
-    anonymized_response = redact_unmapped_pii(final_message.content, pii_mappings)
-    final_state["messages"][-1] = final_message.model_copy(
-        update={"content": anonymized_response}
-    )
+    anonymized_assistant_response, _ = anonymize_text(final_message.content)
     message_metadata = final_message.additional_kwargs
     audit_metadata = {
         "turnId": turn_id,
@@ -122,15 +107,11 @@ async def execute_prepared_turn(
         ),
     }
     await enviar_mensagem_chatbot(
-        prepared_turn.messenger_conversation_id,
-        redact_unresolved_pii_tokens(anonymized_response, {}),
-        audit_metadata,
+        api_conversation_id, anonymized_assistant_response, audit_metadata
     )
+
+    if user_id:
+        ultima_troca = f"Usuário: {user_input}\nAssistente: {final_message.content}"
+        _agendar_atualizacao_memoria(user_id, fatos_existentes, ultima_troca)
+
     return final_state
-
-
-async def execute_turn(
-    conversation_id: str, user_input: str, workflow, user_token: str
-) -> dict:
-    prepared_turn = await prepare_turn(conversation_id, user_input, user_token)
-    return await execute_prepared_turn(prepared_turn, workflow)

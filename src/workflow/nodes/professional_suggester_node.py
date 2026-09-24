@@ -1,6 +1,6 @@
 from langchain_core.messages import AIMessage
 
-from src.agents.base.base_agent import invoke_agent_with_fallback
+from src.agents.base.base_agent import build_agent
 from src.agents.specialist.professional_suggester.professional_suggester_prompt import (
     PROFESSIONAL_SUGGESTER_AGENT,
 )
@@ -12,11 +12,9 @@ from src.workflow.turn_tracking import append_turn_agent
 
 async def professional_suggester_node(state: GraphState, config=None) -> dict:
     tools = await get_mcp_tool("buscar_tecnicos_credenciados")
-    result = await invoke_agent_with_fallback(
-        PROFESSIONAL_SUGGESTER_AGENT,
-        messages_with_summary(state),
-        tools=tools,
-        config=config,
+    agent = build_agent(PROFESSIONAL_SUGGESTER_AGENT, tools=tools)
+    result = await agent.ainvoke(
+        {"messages": messages_with_summary(state)}, config=config
     )
     last_message = result["messages"][-1]
 

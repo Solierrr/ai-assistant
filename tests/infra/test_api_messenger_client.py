@@ -1,96 +1,125 @@
 import json
 
-import httpx
+import pytest
+import respx
+from httpx import Response
 
 from src.infra.api_messenger import client
 
 
-def _mock_client(handler) -> httpx.AsyncClient:
-    return httpx.AsyncClient(
-        base_url="http://api-messenger",
-        transport=httpx.MockTransport(handler),
-    )
+@pytest.mark.asyncio
+@respx.mock
+async def test_criar_conversa_usa_token_do_usuario(monkeypatch):
+    monkeypatch.setattr(client.settings, "API_MESSENGER_URL", "http://api-messenger")
+    monkeypatch.setattr(client.settings, "ENVIRONMENT", "LOCAL")
 
-
-async def test_rotas_publicas_usam_jwt_do_usuario(monkeypatch):
-    requests = []
-
-    def handler(request):
-        requests.append(request)
-        if request.url.path.endswith("chatbot-conversations"):
-            return httpx.Response(201, json={"id": "conv-1"})
-        return httpx.Response(201, json={})
-
-    http_client = _mock_client(handler)
-    monkeypatch.setattr(client, "_http_client", http_client)
-    monkeypatch.setattr(client, "_http_client_loop", None)
-    monkeypatch.setattr(client.settings, "ENVIRONMENT", "QA")
+    criar_route = respx.post(
+        "http://api-messenger/messaging/conversations/chatbot-conversations"
+    ).mock(return_value=Response(200, json={"id": "conv-1"}))
 
     conversation_id = await client.criar_conversa_chatbot(
-        "lead", {}, "token-do-usuario"
-    )
-    await client.enviar_mensagem_usuario(
-        conversation_id, "mensagem", "token-do-usuario"
+        "lead", {"empresa": "Solaria"}, user_token="token-do-usuario"
     )
 
     assert conversation_id == "conv-1"
-    assert all(
-        request.headers["Authorization"] == "Bearer token-do-usuario"
-        for request in requests
+    assert (
+        criar_route.calls.last.request.headers["Authorization"]
+        == "Bearer token-do-usuario"
     )
-    assert json.loads(requests[1].content)["environment"] == "QA"
-    await http_client.aclose()
 
 
-async def test_rotas_internas_nao_usam_token_m2m(monkeypatch):
-    requests = []
-
-    def handler(request):
-        requests.append(request)
-        return httpx.Response(201, json={})
-
-    http_client = _mock_client(handler)
-    monkeypatch.setattr(client, "_http_client", http_client)
-    monkeypatch.setattr(client, "_http_client_loop", None)
-
-    await client.enviar_mensagem_chatbot("conv-1", "resposta", {})
-    await client.enviar_observabilidade({"node": "router"})
-
-    assert len(requests) == 2
-    assert all("Authorization" not in request.headers for request in requests)
-    await http_client.aclose()
-
-
-async def test_cliente_http_e_reutilizado_e_fechado(monkeypatch):
-    monkeypatch.setattr(client, "_http_client", None)
-    monkeypatch.setattr(client, "_http_client_loop", None)
+@pytest.mark.asyncio
+@respx.mock
+async def test_criar_conversa_manda_environment_no_corpo(monkeypatch):
     monkeypatch.setattr(client.settings, "API_MESSENGER_URL", "http://api-messenger")
+    monkeypatch.setattr(client.settings, "ENVIRONMENT", "QA")
 
-    first = client.get_api_messenger_client()
-    second = client.get_api_messenger_client()
-    assert first is second
+    criar_route = respx.post(
+        "http://api-messenger/messaging/conversations/chatbot-conversations"
+    ).mock(return_value=Response(200, json={"id": "conv-1"}))
 
-    await client.close_api_messenger_client()
-    assert first.is_closed
-    assert client._http_client is None
-    assert client._http_client_loop is None
+    await client.criar_conversa_chatbot("lead", {}, user_token="token-do-usuario")
+
+    corpo = json.loads(criar_route.calls.last.request.content)
+    assert corpo["environment"] == "QA"
 
 
-async def test_cliente_http_nao_e_reutilizado_entre_event_loops(monkeypatch):
-    current_loop = object()
-    next_loop = object()
-    monkeypatch.setattr(client, "_http_client", None)
-    monkeypatch.setattr(client, "_http_client_loop", None)
+@pytest.mark.asyncio
+@respx.mock
+async def test_enviar_mensagem_chatbot_nao_manda_header_de_autenticacao(monkeypatch):
+    """/internal/** não exige mais auth de aplicação — confirma que a
+    requisição não carrega Authorization nenhum."""
     monkeypatch.setattr(client.settings, "API_MESSENGER_URL", "http://api-messenger")
-    monkeypatch.setattr(client.asyncio, "get_running_loop", lambda: current_loop)
+    monkeypatch.setattr(client.settings, "ENVIRONMENT", "LOCAL")
 
-    first = client.get_api_messenger_client()
+    mensagem_route = respx.post("http://api-messenger/internal/messages").mock(
+        return_value=Response(200, json={})
+    )
 
-    monkeypatch.setattr(client.asyncio, "get_running_loop", lambda: next_loop)
-    second = client.get_api_messenger_client()
+    await client.enviar_mensagem_chatbot("conv-1", "ola", {"turnId": "t-1"})
 
-    assert second is not first
-    assert client._http_client_loop is next_loop
+    assert mensagem_route.called
+    assert "Authorization" not in mensagem_route.calls.last.request.headers
 
-    await first.aclose()
-    await client.close_api_messenger_client()
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_enviar_mensagem_chatbot_manda_environment_e_metadata_camel_case(monkeypatch):
+    monkeypatch.setattr(client.settings, "API_MESSENGER_URL", "http://api-messenger")
+    monkeypatch.setattr(client.settings, "ENVIRONMENT", "PROD")
+
+    mensagem_route = respx.post("http://api-messenger/internal/messages").mock(
+        return_value=Response(200, json={})
+    )
+
+    metadata = {
+        "turnId": "t-1",
+        "contentAnonymized": True,
+        "specialistsUsed": [],
+        "workflowSteps": [],
+    }
+    await client.enviar_mensagem_chatbot("conv-1", "ola", metadata)
+
+    corpo = json.loads(mensagem_route.calls.last.request.content)
+    assert corpo["environment"] == "PROD"
+    assert corpo["metadata"] == metadata
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_enviar_observabilidade_nao_manda_header_de_autenticacao(monkeypatch):
+    monkeypatch.setattr(client.settings, "API_MESSENGER_URL", "http://api-messenger")
+    monkeypatch.setattr(client.settings, "ENVIRONMENT", "LOCAL")
+
+    obs_route = respx.post("http://api-messenger/internal/observability").mock(
+        return_value=Response(200, json={})
+    )
+
+    await client.enviar_observabilidade({"node": "router", "status": "ok"})
+
+    assert obs_route.called
+    assert "Authorization" not in obs_route.calls.last.request.headers
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_enviar_mensagem_usuario_usa_endpoint_e_jwt_do_usuario(monkeypatch):
+    monkeypatch.setattr(client.settings, "API_MESSENGER_URL", "http://api-messenger")
+    monkeypatch.setattr(client.settings, "ENVIRONMENT", "QA")
+
+    mensagem_route = respx.post("http://api-messenger/messaging/messages").mock(
+        return_value=Response(201, json={})
+    )
+
+    await client.enviar_mensagem_usuario("conv-1", "ola", "token-do-usuario")
+
+    request = mensagem_route.calls.last.request
+    corpo = json.loads(request.content)
+    assert request.headers["Authorization"] == "Bearer token-do-usuario"
+    assert corpo == {
+        "conversationId": "conv-1",
+        "messageType": "USER_TO_CHATBOT",
+        "role": "user",
+        "content": "ola",
+        "environment": "QA",
+    }

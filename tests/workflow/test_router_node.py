@@ -1,32 +1,114 @@
-from types import SimpleNamespace
 from unittest.mock import Mock
 
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
+from src.agents.base.system_prompt import (
+    SYSTEM_CORE_COMMUNICATION,
+    SYSTEM_CORE_SECURITY,
+)
+from src.agents.specialist.router.router_prompt import ROUTER_AGENT
 from src.workflow.nodes import router_node
 
 
-def structured_llm(result):
+def _mock_llm(route, direct_response=""):
     llm = Mock()
-    llm.with_structured_output.return_value.invoke.return_value = result
+    llm.invoke.return_value = AIMessage(
+        content=f"ROTA: {route if route is not None else 'None'}\nRESPOSTA_DIRETA: {direct_response}"
+    )
     return llm
 
 
-def test_router_uses_structured_specialist_route(monkeypatch):
-    llm = structured_llm(SimpleNamespace(rota="faq_reader", resposta_direta=None))
+def test_router_routes_to_valid_specialist(monkeypatch):
+    llm = _mock_llm("solar_panel_specialist")
+    monkeypatch.setattr(router_node, "llm_groq", Mock(return_value=llm))
+    result = router_node.router_node(
+        {"messages": [HumanMessage(content="Preciso de paineis solares")]}
+    )
+    assert result == {"route": "solar_panel_specialist", "turn_agents": ["router"]}
+    messages = llm.invoke.call_args.args[0]
+    assert isinstance(messages[0], SystemMessage)
+    assert SYSTEM_CORE_SECURITY.strip() in messages[0].content
+    assert SYSTEM_CORE_COMMUNICATION.strip() in messages[0].content
+    assert ROUTER_AGENT.strip() in messages[0].content
+    assert "ROTA:" in messages[1].content
+    llm.with_structured_output.assert_not_called()
+
+
+def test_router_routes_to_solar_calculator(monkeypatch):
+    llm = _mock_llm("solar_calculator")
     monkeypatch.setattr(router_node, "llm_groq", Mock(return_value=llm))
 
-    result = router_node.router_node({"messages": [HumanMessage(content="Tenho uma duvida")]})
+    result = router_node.router_node(
+        {"messages": [HumanMessage(content="Calcule meu sistema solar")]}
+    )
 
-    assert result == {"route": "faq_reader", "turn_agents": ["router"]}
-    llm.with_structured_output.assert_called_once_with(router_node.DecisaoRoteamento)
+    assert result == {"route": "solar_calculator", "turn_agents": ["router"]}
 
 
-def test_router_returns_direct_response_without_route(monkeypatch):
-    llm = structured_llm(SimpleNamespace(rota=None, resposta_direta="Resposta direta"))
+    llm = _mock_llm("orchestrator")
     monkeypatch.setattr(router_node, "llm_groq", Mock(return_value=llm))
+    result = router_node.router_node(
+        {"messages": [HumanMessage(content="Ja respondeu")], "turn_agents": ["solar_panel_specialist"]}
+    )
+    assert result["route"] == "orchestrator"
 
-    result = router_node.router_node({"messages": [HumanMessage(content="Oi")]})
 
+def test_router_returns_direct_response(monkeypatch):
+    llm = _mock_llm(None, "Posso ajudar com informacoes sobre a Solaria.")
+    monkeypatch.setattr(router_node, "llm_groq", Mock(return_value=llm))
+    result = router_node.router_node({"messages": [HumanMessage(content="O que e a Solaria?")]})
     assert result["route"] == "end"
-    assert result["messages"][0].content == "Resposta direta"
+    assert result["messages"][0].content == "Posso ajudar com informacoes sobre a Solaria."
+
+
+def test_router_short_circuits_at_specialist_limit(monkeypatch):
+    llm = Mock()
+    monkeypatch.setattr(router_node, "llm_groq", Mock(return_value=llm))
+    monkeypatch.setattr(router_node.config, "MAX_SPECIALISTS_PER_REQUEST", 1)
+    result = router_node.router_node(
+        {"messages": [HumanMessage(content="Mais uma")], "turn_agents": ["faq_reader"]}
+    )
+    assert result["route"] == "orchestrator"
+    llm.invoke.assert_not_called()
+
+
+def test_router_only_offers_unused_routes(monkeypatch):
+    llm = _mock_llm("faq_reader")
+    monkeypatch.setattr(router_node, "llm_groq", Mock(return_value=llm))
+
+    router_node.router_node(
+        {
+            "messages": [HumanMessage(content="Preciso de ajuda")],
+            "summary": "O usuario ja recebeu orientacao tecnica.",
+            "turn_agents": ["solar_panel_specialist"],
+        }
+    )
+
+    messages = llm.invoke.call_args.args[0]
+    assert "faq_reader" in messages[1].content
+    assert "solar_panel_specialist" not in messages[1].content
+    assert "Resumo" in messages[2].content
+
+
+def test_router_falls_back_for_invalid_route(monkeypatch):
+    llm = _mock_llm("rota_inventada")
+    monkeypatch.setattr(router_node, "llm_groq", Mock(return_value=llm))
+    result = router_node.router_node({"messages": [HumanMessage(content="Ajuda")]})
+    assert result == {"route": "orchestrator", "turn_agents": ["router_invalid_route"]}
+
+
+def test_router_falls_back_for_malformed_response(monkeypatch):
+    llm = Mock()
+    llm.invoke.return_value = AIMessage(content="Escolha faq_reader")
+    monkeypatch.setattr(router_node, "llm_groq", Mock(return_value=llm))
+    result = router_node.router_node({"messages": [HumanMessage(content="Ajuda")]})
+    assert result == {"route": "orchestrator", "turn_agents": ["router_invalid_response"]}
+
+
+def test_router_falls_back_when_direct_response_is_empty(monkeypatch):
+    llm = _mock_llm(None)
+    monkeypatch.setattr(router_node, "llm_groq", Mock(return_value=llm))
+
+    result = router_node.router_node({"messages": [HumanMessage(content="Ajuda")]})
+
+    assert result == {"route": "orchestrator", "turn_agents": ["router_invalid_response"]}

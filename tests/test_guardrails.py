@@ -36,7 +36,7 @@ def test_anonymize_text_replaces_multiple_occurrences():
     assert len(mapa_pii) == 4
 
 
-def test_deanonymize_text_restores_original_values():
+def test_deanonymize_text_omits_original_values():
     mapa_pii = {
         "[PII_CPF_abc123]": "123.456.789-00",
         "[PII_EMAIL_def456]": "ana@example.com",
@@ -45,4 +45,6 @@ def test_deanonymize_text_restores_original_values():
 
     texto_final = deanonymize_text(texto, mapa_pii)
 
-    assert texto_final == "Dados: 123.456.789-00 e ana@example.com"
+    assert texto_final == "Dados: [CPF OMITIDO] e [EMAIL OMITIDO]"
+    assert "123.456.789-00" not in texto_final
+    assert "ana@example.com" not in texto_final

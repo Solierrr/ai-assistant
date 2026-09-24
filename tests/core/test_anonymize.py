@@ -27,8 +27,9 @@ def test_anonymizes_all_occurrences_of_repeated_value():
     assert len(pii_map) == 1
 
 
-def test_deanonymize_replaces_token_with_original_value():
+def test_deanonymize_replaces_token_with_generic_label():
     text, pii_map = anonymize_text("Meu CPF é 123.456.789-00")
     token = next(iter(pii_map))
     result = deanonymize_text(f"Confirmado, seu dado {token} foi recebido.", pii_map)
-    assert "123.456.789-00" in result
+    assert "CPF OMITIDO" in result
+    assert "123.456.789-00" not in result
