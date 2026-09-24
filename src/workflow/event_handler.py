@@ -35,6 +35,7 @@ async def handle_chat_event(
             thread_id=conversation_id,
             messenger_conversation_id=messenger_conversation_id,
             user_input=message,
+            pii_owner_scope=event.payload.get("pii_owner_scope", "local"),
         ),
         workflow,
     )

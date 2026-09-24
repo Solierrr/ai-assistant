@@ -5,6 +5,7 @@ from uuid import UUID
 
 from src.core.config.settings import settings
 from src.infra.messaging.redis_client import get_redis_client
+from src.infra.privacy.pii_map_store import touch_result_owner
 
 
 def build_result_key(event_id: UUID | str) -> str:
@@ -32,6 +33,7 @@ async def save_event_result(
         value=serialize_event_result(event_id, result),
         ex=settings.AGENT_RESULT_TTL_SECONDS,
     )
+    await touch_result_owner(event_id)
 
 
 async def get_event_result(
