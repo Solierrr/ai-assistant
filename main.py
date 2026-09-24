@@ -3,8 +3,10 @@ from uuid import uuid4
 
 from dotenv import load_dotenv
 
+from src.core.config.settings import settings
 from src.infra.database.mongo.indexes.create_indexes import create_indexes
 from src.infra.database.mongo.mongodb_client import MongoDBClient
+from src.infra.privacy.core_redis_client import connect_core_redis
 from src.workflow.runner import execute_turn
 
 load_dotenv()
@@ -13,6 +15,7 @@ load_dotenv()
 async def startup():
     await MongoDBClient.connect()
     await create_indexes()
+    await connect_core_redis()
 
 
 async def run_chat():
@@ -36,6 +39,7 @@ async def run_chat():
                 conversation_id,
                 user_input,
                 compiled_app,
+                settings.TEST_USER_TOKEN or "",
             )
 
             print(f"{final_state['messages'][-1].content}")
