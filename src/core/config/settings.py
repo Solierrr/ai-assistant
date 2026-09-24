@@ -49,6 +49,14 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("UPSTASH_AGENTS_PASSWORD", "UPSTASH_REDIS_PASSWORD"),
     )
 
+    UPSTASH_CORE_HOST: str | None = None
+    UPSTASH_CORE_PORT: int = Field(default=6379, gt=0)
+    UPSTASH_CORE_USERNAME: str = "default"
+    UPSTASH_CORE_PASSWORD: str | None = None
+    PII_ENCRYPTION_KEY: str | None = None
+    PII_MAP_IDLE_TTL_SECONDS: int = Field(default=1_800, gt=0)
+    PII_MAP_MAX_TTL_SECONDS: int = Field(default=86_400, gt=0)
+
     AGENT_STREAM_CHATBOT: str = "agent:stream:chatbot"
     AGENT_STREAM_MAXLEN: int = Field(default=1_000, gt=0)
     AGENT_STREAM_GROUP: str = "chatbot-agents"
