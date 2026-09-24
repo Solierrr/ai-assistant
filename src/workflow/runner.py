@@ -5,13 +5,22 @@ from uuid import uuid4
 from langchain_core.messages import HumanMessage
 
 from src.core.config.settings import settings
-from src.core.guardrails.anonymize import anonymize_text
+from src.core.guardrails.anonymize import (
+    anonymize_text,
+    redact_unmapped_pii,
+    redact_unresolved_pii_tokens,
+)
 from src.infra.api_messenger.client import (
     criar_conversa_chatbot,
     enviar_mensagem_chatbot,
     enviar_mensagem_usuario,
 )
 from src.workflow.observability.step_tracker import StepTracker
+from src.infra.privacy.pii_map_store import (
+    get_pii_mappings,
+    owner_token_digest,
+    retain_pii_mappings,
+)
 
 
 @dataclass(frozen=True)
@@ -19,6 +28,7 @@ class PreparedTurn:
     thread_id: str
     messenger_conversation_id: str
     user_input: str
+    pii_owner_scope: str = "local"
 
 
 _conversations_por_thread: dict[str, str] = {}
@@ -44,10 +54,17 @@ async def _get_or_create_conversation_id(thread_id: str, user_token: str) -> str
 async def prepare_turn(
     thread_id: str, user_input: str, user_token: str
 ) -> PreparedTurn:
-    anonymized_user_input, _ = anonymize_text(user_input)
+    anonymized_user_input, mappings = anonymize_text(user_input)
+    cpf_mappings = {
+        token: value
+        for token, value in mappings.items()
+        if token.startswith("[PII_CPF_")
+    }
+    owner_scope = owner_token_digest(user_token)
     messenger_conversation_id = await _get_or_create_conversation_id(
         thread_id, user_token
     )
+    await retain_pii_mappings(thread_id, owner_scope, cpf_mappings)
     await enviar_mensagem_usuario(
         messenger_conversation_id,
         anonymized_user_input,
@@ -56,7 +73,8 @@ async def prepare_turn(
     return PreparedTurn(
         thread_id=thread_id,
         messenger_conversation_id=messenger_conversation_id,
-        user_input=user_input,
+        user_input=anonymized_user_input,
+        pii_owner_scope=owner_scope,
     )
 
 
@@ -68,6 +86,9 @@ async def execute_prepared_turn(
     tracker = StepTracker(
         conversation_id=prepared_turn.messenger_conversation_id,
         environment=settings.ENVIRONMENT,
+    )
+    pii_mappings = await get_pii_mappings(
+        prepared_turn.thread_id, prepared_turn.pii_owner_scope
     )
     try:
         final_state = await workflow.ainvoke(
@@ -87,7 +108,10 @@ async def execute_prepared_turn(
         await tracker.flush()
 
     final_message = final_state["messages"][-1]
-    anonymized_response, _ = anonymize_text(final_message.content)
+    anonymized_response = redact_unmapped_pii(final_message.content, pii_mappings)
+    final_state["messages"][-1] = final_message.model_copy(
+        update={"content": anonymized_response}
+    )
     message_metadata = final_message.additional_kwargs
     audit_metadata = {
         "turnId": turn_id,
@@ -99,7 +123,7 @@ async def execute_prepared_turn(
     }
     await enviar_mensagem_chatbot(
         prepared_turn.messenger_conversation_id,
-        anonymized_response,
+        redact_unresolved_pii_tokens(anonymized_response, {}),
         audit_metadata,
     )
     return final_state

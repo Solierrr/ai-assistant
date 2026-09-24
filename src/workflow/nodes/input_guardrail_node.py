@@ -31,16 +31,16 @@ class ClassificacaoEntrada(BaseModel):
     motivo: str
 
 
-def _blocked_result(
-    state: GraphState, category: str, pii_map: dict | None = None
-) -> dict:
+def _blocked_result(state: GraphState, category: str) -> dict:
     return {
         "messages": [
             RemoveMessage(id=state["messages"][-1].id),
             AIMessage(content=BLOCKED_RESPONSE),
         ],
         "route": "end",
-        "pii_map": pii_map or {},
+        # Clear any legacy checkpoint value. The reversible map lives only in
+        # solaria-core and never enters the LangGraph checkpoint.
+        "pii_map": {},
         "turn_agents": [f"input_guardrail_blocked_{category.lower()}"],
     }
 
@@ -53,7 +53,7 @@ def input_guardrail_node(state: GraphState, config=None) -> dict:
     if matches_internal_data_keyword(last_message):
         return _blocked_result(state, "dados_internos_regex")
 
-    anonymized_text, pii_map = anonymize_text(last_message)
+    anonymized_text, _ = anonymize_text(last_message)
     formatted_prompt = INPUT_GUARDRAIL_PROMPT.format(mensagem=anonymized_text)
 
     try:
@@ -69,7 +69,7 @@ def input_guardrail_node(state: GraphState, config=None) -> dict:
     category = classificacao.categoria.strip().upper()
 
     if category != "APROVADO":
-        return _blocked_result(state, category, pii_map)
+        return _blocked_result(state, category)
 
     return {
         "messages": [
@@ -77,6 +77,6 @@ def input_guardrail_node(state: GraphState, config=None) -> dict:
             HumanMessage(content=anonymized_text),
         ],
         "route": "proceed",
-        "pii_map": pii_map,
+        "pii_map": {},
         "turn_agents": ["input_guardrail_approved"],
     }
