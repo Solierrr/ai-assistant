@@ -15,12 +15,12 @@ from src.infra.api_messenger.client import (
     enviar_mensagem_chatbot,
     enviar_mensagem_usuario,
 )
-from src.workflow.observability.step_tracker import StepTracker
 from src.infra.privacy.pii_map_store import (
     get_pii_mappings,
     owner_token_digest,
     retain_pii_mappings,
 )
+from src.workflow.observability.step_tracker import StepTracker
 
 
 @dataclass(frozen=True)
