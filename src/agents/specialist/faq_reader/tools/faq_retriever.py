@@ -16,7 +16,7 @@ def faq_retriever(query: str) -> str:
     try:
         index = load_faq_index()
         resultados = index.similarity_search(query, k=3)
-    except Exception as erro:  # noqa: BLE001
+    except Exception as erro: 
         logger.warning("Falha ao consultar o FAQ: %s", erro)
         return "FAQ indisponível no momento."
 
