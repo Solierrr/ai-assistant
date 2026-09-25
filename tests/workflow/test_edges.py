@@ -17,14 +17,7 @@ def test_decide_post_input_guardrail_returns_proceed_for_other_routes():
 
 @pytest.mark.parametrize(
     "route",
-    [
-        "faq_reader",
-        "professional_suggester",
-        "agency_suggester",
-        "solar_panel_specialist",
-        "solar_calculator",
-        "end",
-    ],
+    ["faq_reader", "professional_suggester", "agency_suggester", "solar_panel_specialist", "end"],
 )
 def test_decide_post_router_returns_the_selected_route(route):
     assert decide_post_router({"route": route}) == route
