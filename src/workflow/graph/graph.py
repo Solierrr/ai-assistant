@@ -14,7 +14,6 @@ from src.workflow.nodes.orchestrator_node import orchestrator_node
 from src.workflow.nodes.output_guardrail_node import output_guardrail_node
 from src.workflow.nodes.professional_suggester_node import professional_suggester_node
 from src.workflow.nodes.router_node import router_node
-from src.workflow.nodes.solar_calculator_node import solar_calculator_node
 from src.workflow.nodes.solar_panel_specialist_node import solar_panel_specialist_node
 from src.workflow.nodes.summary_node import condense_history_node
 from src.workflow.state import GraphState
@@ -28,7 +27,6 @@ graph.add_node("faq_reader", faq_reader_node)
 graph.add_node("professional_suggester", professional_suggester_node)
 graph.add_node("agency_suggester", agency_suggester_node)
 graph.add_node("solar_panel_specialist", solar_panel_specialist_node)
-graph.add_node("solar_calculator", solar_calculator_node)
 graph.add_node("orchestrator", orchestrator_node)
 graph.add_node("judge", judge_node)
 graph.add_node("output_guardrail", output_guardrail_node)
@@ -51,7 +49,6 @@ graph.add_conditional_edges(
         "professional_suggester": "professional_suggester",
         "agency_suggester": "agency_suggester",
         "solar_panel_specialist": "solar_panel_specialist",
-        "solar_calculator": "solar_calculator",
         "orchestrator": "orchestrator",
         "end": "output_guardrail",
     },
@@ -61,7 +58,6 @@ graph.add_edge("faq_reader", "router")
 graph.add_edge("professional_suggester", "router")
 graph.add_edge("agency_suggester", "router")
 graph.add_edge("solar_panel_specialist", "router")
-graph.add_edge("solar_calculator", "router")
 graph.add_edge("orchestrator", "judge")
 
 graph.add_conditional_edges(
