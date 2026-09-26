@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.1.0](https://github.com/Solierrr/ai-assistant/compare/v3.0.0...v3.1.0) (2026-09-26)
+
+
+### Features
+
+* qdrant migration ([#79](https://github.com/Solierrr/ai-assistant/issues/79)) ([e9f624d](https://github.com/Solierrr/ai-assistant/commit/e9f624dcb16bcd3eb131fa837823a848e6630563))
+
 ## [3.0.0](https://github.com/Solierrr/ai-assistant/compare/v0.2.0...v3.0.0) (2026-09-24)
 
 
