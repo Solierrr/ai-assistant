@@ -1,5 +1,14 @@
 # Changelog
 
+## [3.1.1](https://github.com/Solierrr/ai-assistant/compare/v3.1.0...v3.1.1) (2026-09-30)
+
+
+### Bug Fixes
+
+* grant pull-requests write permission to release workflow ([e2297f7](https://github.com/Solierrr/ai-assistant/commit/e2297f74ab9ace05359cdb8c969823fd23f5dfdc))
+* pass vault arguments correctly in PowerShell ([37f38a9](https://github.com/Solierrr/ai-assistant/commit/37f38a9a72f5887f5b8bd13196f5abd3fee4593f))
+* support powershell secret extraction ([d7e13bc](https://github.com/Solierrr/ai-assistant/commit/d7e13bcb109b5e434fe8f3779c016be009c9e73c))
+
 ## [3.1.0](https://github.com/Solierrr/ai-assistant/compare/v3.0.0...v3.1.0) (2026-09-26)
 
 
