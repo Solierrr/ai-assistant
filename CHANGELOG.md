@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.1.2](https://github.com/Solierrr/ai-assistant/compare/v3.1.1...v3.1.2) (2026-10-01)
+
+
+### Bug Fixes
+
+* restore infisical env aliases in settings ([#88](https://github.com/Solierrr/ai-assistant/issues/88)) ([3c77cdf](https://github.com/Solierrr/ai-assistant/commit/3c77cdfb024dfcb0d9e10f8d5b9e842f36024893))
+
 ## [3.1.1](https://github.com/Solierrr/ai-assistant/compare/v3.1.0...v3.1.1) (2026-09-30)
 
 
