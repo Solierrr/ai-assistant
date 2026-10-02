@@ -2,12 +2,12 @@ import asyncio
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
+import ai_lib.llm.pricing as model_pricing
 import httpx
 from groq import APITimeoutError, RateLimitError
 from httpx import ConnectError, TimeoutException
 
-import src.core.config.model_pricing as model_pricing
-import src.workflow.observability.step_tracker as step_tracker
+from src.workflow.observability import step_tracker
 
 
 def _resposta_llm(model="llama-3.3", tokens_in=10, tokens_out=5):
