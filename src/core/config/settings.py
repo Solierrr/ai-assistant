@@ -1,7 +1,6 @@
 from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-
 class Settings(BaseSettings):
     MONGO_URI: str = Field(
         "mongodb://localhost:27017",
