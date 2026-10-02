@@ -1,21 +1,24 @@
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from src.api.schemas.chat import ChatRequest, ChatResponse
 from src.workflow.runner import execute_turn
 
 router = APIRouter(tags=["chat"])
+bearer_scheme = HTTPBearer(auto_error=False)
 
 
 @router.post("/chat", response_model=ChatResponse)
 async def conversar(
-    requisicao: ChatRequest, authorization: str | None = Header(None)
+    requisicao: ChatRequest,
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
 ) -> ChatResponse:
     """Recebe uma mensagem do usuário e devolve a resposta do assistente."""
-    if not authorization or not authorization.startswith("Bearer "):
+    if credentials is None:
         raise HTTPException(
             status_code=401, detail="Authorization header deve ser 'Bearer <token>'"
         )
-    user_token = authorization.removeprefix("Bearer ")
+    user_token = credentials.credentials
 
     from src.workflow.graph.graph import compiled_app
 
