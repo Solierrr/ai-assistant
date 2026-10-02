@@ -1,6 +1,7 @@
 from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+
 class Settings(BaseSettings):
     MONGO_URI: str = Field(
         "mongodb://localhost:27017",
@@ -44,8 +45,8 @@ class Settings(BaseSettings):
     MCP_URL: str = "http://localhost:8001/mcp"
     MCP_API_KEY: str | None = None
 
-    GOOGLE_API_KEY: str | None = None
-    GROQ_API_KEY: str | None = None
+    REGISTRY_URL: str | None = None
+    REGISTRY_CONSUMER_TOKEN: str | None = None
 
     QDRANT_URL: str | None = None
     QDRANT_API_KEY: str | None = None

@@ -25,3 +25,4 @@ pypdf
 certifi
 redis
 pyjwt
+solaria-lib @ git+https://github.com/Solierrr/ai-lib.git@feat/initial-package
