@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.1.3](https://github.com/Solierrr/ai-assistant/compare/v3.1.2...v3.1.3) (2026-10-02)
+
+
+### Bug Fixes
+
+* use HTTPBearer for chat auth and raise api-messenger timeout ([#92](https://github.com/Solierrr/ai-assistant/issues/92)) ([580db84](https://github.com/Solierrr/ai-assistant/commit/580db849f512dc3b872aaa8fbd7c79c20433d3a4))
+
 ## [3.1.2](https://github.com/Solierrr/ai-assistant/compare/v3.1.1...v3.1.2) (2026-10-01)
 
 
