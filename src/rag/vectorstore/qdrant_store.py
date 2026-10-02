@@ -1,8 +1,8 @@
 import os
 import uuid
 
+from ai_lib.llm import LeasedEmbeddings
 from langchain_community.document_loaders import PyPDFLoader
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_qdrant import QdrantVectorStore
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from qdrant_client import QdrantClient
@@ -15,6 +15,7 @@ from qdrant_client.models import (
 )
 
 from src.core.config.settings import settings
+from src.core.llm.registry import registry_client
 
 _PDF_PATH = os.path.join(os.path.dirname(__file__), "..", "FAQ_v1.pdf")
 _COLLECTION_NAME = "solaria-faq"
@@ -29,8 +30,8 @@ def _get_embeddings():
     """Instancia o modelo de embeddings do Google sob demanda (lazy)."""
     global _embeddings
     if _embeddings is None:
-        _embeddings = GoogleGenerativeAIEmbeddings(
-            model="models/gemini-embedding-001", api_key=settings.GOOGLE_API_KEY
+        _embeddings = LeasedEmbeddings(
+            model="models/gemini-embedding-001", client=registry_client()
         )
     return _embeddings
 
