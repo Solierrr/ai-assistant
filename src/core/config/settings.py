@@ -50,6 +50,13 @@ class Settings(BaseSettings):
     QDRANT_URL: str | None = None
     QDRANT_API_KEY: str | None = None
 
+
+    SOLARIA_LANGSMITH_ENABLED: bool = False
+    SOLARIA_LANGSMITH_API_KEY: str | None = None
+    SOLARIA_LANGSMITH_PROJECT: str = "solaria-local"
+    SOLARIA_LANGSMITH_ENDPOINT: str | None = None
+    SOLARIA_LANGSMITH_SAMPLING_RATE: float = 1.0
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 
