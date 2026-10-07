@@ -4,6 +4,7 @@ from fastapi import FastAPI
 
 from src.api.routes import chat
 from src.core.config.settings import settings
+from src.core.observability.langsmith_tracing import warn_if_global_tracing
 from src.infra.database.mongo.indexes.user_memory_indexes import (
     ensure_user_memory_indexes,
 )
@@ -11,6 +12,7 @@ from src.infra.database.mongo.indexes.user_memory_indexes import (
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    warn_if_global_tracing()
     await ensure_user_memory_indexes()
     yield
 
