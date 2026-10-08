@@ -25,3 +25,4 @@ pypdf
 certifi
 redis
 pyjwt
+langsmith

@@ -4,7 +4,9 @@ from uuid import uuid4
 
 from langchain_core.messages import HumanMessage
 
+from src.core.config.settings import settings
 from src.core.guardrails.anonymize import anonymize_text
+from src.core.observability.langsmith_tracing import build_tracer
 from src.core.security.jwt import decode_user_id
 from src.infra.api_messenger.client import (
     criar_conversa_chatbot,
@@ -79,6 +81,7 @@ async def execute_turn(
     fatos_existentes = await get_user_memory(user_id) if user_id else []
     user_memory = "\n".join(f"- {fato}" for fato in fatos_existentes)
 
+    tracer = build_tracer()
     final_state = await workflow.ainvoke(
         {
             "messages": [HumanMessage(content=user_input)],
@@ -91,7 +94,14 @@ async def execute_turn(
         },
         config={
             "configurable": {"thread_id": conversation_id},
-            "callbacks": [tracker],
+            "callbacks": [tracker] + ([tracer] if tracer else []),
+            "metadata": {
+                "conversation_id": api_conversation_id,
+                "environment": settings.ENVIRONMENT,
+                "assistant": "ai-assistant",
+                "source": "chat",
+            },
+            "tags": [settings.ENVIRONMENT.lower()],
         },
     )
 

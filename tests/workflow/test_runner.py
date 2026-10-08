@@ -43,6 +43,7 @@ def test_execute_turn_persists_anonymized_request_and_audited_response(monkeypat
         Mock(side_effect=[("texto anonimo", {}), ("resposta anonima", {})]),
     )
     monkeypatch.setattr(runner, "uuid4", Mock(return_value="turn-123"))
+    monkeypatch.setattr(runner, "build_tracer", Mock(return_value=None))
 
     asyncio.run(
         runner.execute_turn(
@@ -60,6 +61,13 @@ def test_execute_turn_persists_anonymized_request_and_audited_response(monkeypat
     assert config_usado["configurable"] == {"thread_id": "conversation-1"}
     assert len(config_usado["callbacks"]) == 1
     assert config_usado["callbacks"][0].conversation_id == "api-conv-1"
+    assert config_usado["metadata"] == {
+        "conversation_id": "api-conv-1",
+        "environment": runner.settings.ENVIRONMENT,
+        "assistant": "ai-assistant",
+        "source": "chat",
+    }
+    assert config_usado["tags"] == [runner.settings.ENVIRONMENT.lower()]
     assert enviar_mensagem_chatbot.await_args.args[:2] == (
         "api-conv-1",
         "resposta anonima",
@@ -232,3 +240,34 @@ def test_execute_turn_nao_propaga_falha_da_atualizacao_de_memoria(monkeypatch):
     resultado = asyncio.run(_run())
 
     assert resultado["messages"][0].content == "resposta"
+
+
+def test_execute_turn_inclui_o_tracer_do_langsmith_nos_callbacks_quando_ligado(
+    monkeypatch,
+):
+    workflow = Mock()
+    workflow.ainvoke = AsyncMock(
+        return_value={"messages": [AIMessage(content="ok")], "turn_agents": []}
+    )
+    tracer = Mock(name="tracer")
+    monkeypatch.setattr(runner, "enviar_mensagem_usuario", AsyncMock())
+    monkeypatch.setattr(runner, "enviar_mensagem_chatbot", AsyncMock())
+    monkeypatch.setattr(runner, "_conversations_por_thread", {})
+    monkeypatch.setattr(
+        runner, "criar_conversa_chatbot", AsyncMock(return_value="api-conv-1")
+    )
+    monkeypatch.setattr(
+        runner,
+        "anonymize_text",
+        Mock(side_effect=[("texto anonimo", {}), ("resposta anonima", {})]),
+    )
+    monkeypatch.setattr(runner, "decode_user_id", Mock(return_value=None))
+    monkeypatch.setattr(runner, "build_tracer", Mock(return_value=tracer))
+
+    asyncio.run(
+        runner.execute_turn("conversation-1", "oi", workflow, user_token="token-abc")
+    )
+
+    callbacks = workflow.ainvoke.await_args.kwargs["config"]["callbacks"]
+    assert len(callbacks) == 2
+    assert callbacks[1] is tracer
