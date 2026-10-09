@@ -1,5 +1,18 @@
 # Changelog
 
+## [3.2.0](https://github.com/Solierrr/ai-assistant/compare/v3.1.2...v3.2.0) (2026-10-09)
+
+
+### Features
+
+* add the local run commands ([48dd939](https://github.com/Solierrr/ai-assistant/commit/48dd9399bd4faaa7b1689fca504807adf3f688f0))
+* langsmith tracing ([#94](https://github.com/Solierrr/ai-assistant/issues/94)) ([311a0d4](https://github.com/Solierrr/ai-assistant/commit/311a0d46d0c69d930a25a4940c5f8ef7d30dd671))
+
+
+### Bug Fixes
+
+* use HTTPBearer for chat auth and raise api-messenger timeout ([#92](https://github.com/Solierrr/ai-assistant/issues/92)) ([580db84](https://github.com/Solierrr/ai-assistant/commit/580db849f512dc3b872aaa8fbd7c79c20433d3a4))
+
 ## [3.1.2](https://github.com/Solierrr/ai-assistant/compare/v3.1.1...v3.1.2) (2026-10-01)
 
 
