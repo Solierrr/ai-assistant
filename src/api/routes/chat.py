@@ -37,4 +37,5 @@ async def conversar(
         workflow_steps=metadata.get(
             "workflow_steps", final_state.get("turn_agents", [])
         ),
+        messenger_conversation_id=final_state.get("messenger_conversation_id"),
     )

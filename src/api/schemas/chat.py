@@ -14,3 +14,7 @@ class ChatResponse(BaseModel):
     response: str
     specialists_used: list[str] = Field(default_factory=list)
     workflow_steps: list[str] = Field(default_factory=list)
+    messenger_conversation_id: str | None = Field(
+        default=None,
+        description="Id da conversa no api-messenger; é o conversationId do POST /messaging/nps.",
+    )
