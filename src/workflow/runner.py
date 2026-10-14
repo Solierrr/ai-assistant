@@ -124,4 +124,4 @@ async def execute_turn(
         ultima_troca = f"Usuário: {user_input}\nAssistente: {final_message.content}"
         _agendar_atualizacao_memoria(user_id, fatos_existentes, ultima_troca)
 
-    return final_state
+    return {**final_state, "messenger_conversation_id": api_conversation_id}

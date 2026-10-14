@@ -110,6 +110,27 @@ def test_execute_turn_reaproveita_conversa_ja_criada_para_a_mesma_thread(monkeyp
     criar_conversa_chatbot.assert_not_awaited()
 
 
+def test_execute_turn_devolve_o_id_da_conversa_do_api_messenger(monkeypatch):
+    workflow = Mock()
+    workflow.ainvoke = AsyncMock(
+        return_value={"messages": [AIMessage(content="oi", additional_kwargs={})]}
+    )
+    monkeypatch.setattr(runner, "enviar_mensagem_usuario", AsyncMock())
+    monkeypatch.setattr(runner, "enviar_mensagem_chatbot", AsyncMock())
+    monkeypatch.setattr(runner, "_conversations_por_thread", {})
+    monkeypatch.setattr(
+        runner, "criar_conversa_chatbot", AsyncMock(return_value="api-conv-9")
+    )
+    monkeypatch.setattr(runner, "build_tracer", Mock(return_value=None))
+
+    resultado = asyncio.run(
+        runner.execute_turn("conversation-1", "texto", workflow, user_token="t")
+    )
+
+    assert resultado["messenger_conversation_id"] == "api-conv-9"
+    assert resultado["messages"][0].content == "oi"
+
+
 def test_execute_turn_injeta_memoria_existente_no_estado_inicial(monkeypatch):
     workflow = Mock()
     workflow.ainvoke = AsyncMock(
