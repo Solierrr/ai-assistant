@@ -1,6 +1,7 @@
 from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+
 class Settings(BaseSettings):
     MONGO_URI: str = Field(
         "mongodb://localhost:27017",
@@ -23,11 +24,15 @@ class Settings(BaseSettings):
     )
     UPSTASH_REDIS_USERNAME: str = Field(
         "default",
-        validation_alias=AliasChoices("UPSTASH_AGENTS_USERNAME", "UPSTASH_REDIS_USERNAME"),
+        validation_alias=AliasChoices(
+            "UPSTASH_AGENTS_USERNAME", "UPSTASH_REDIS_USERNAME"
+        ),
     )
     UPSTASH_REDIS_PASSWORD: str | None = Field(
         None,
-        validation_alias=AliasChoices("UPSTASH_AGENTS_PASSWORD", "UPSTASH_REDIS_PASSWORD"),
+        validation_alias=AliasChoices(
+            "UPSTASH_AGENTS_PASSWORD", "UPSTASH_REDIS_PASSWORD"
+        ),
     )
 
     API_MESSENGER_URL: str | None = None
@@ -46,7 +51,6 @@ class Settings(BaseSettings):
 
     QDRANT_URL: str | None = None
     QDRANT_API_KEY: str | None = None
-
 
     SOLARIA_LANGSMITH_ENABLED: bool = False
     SOLARIA_LANGSMITH_API_KEY: str | None = None
