@@ -44,9 +44,6 @@ class Settings(BaseSettings):
     MCP_URL: str = "http://localhost:8001/mcp"
     MCP_API_KEY: str | None = None
 
-    GOOGLE_API_KEY: str | None = None
-    GROQ_API_KEY: str | None = None
-
     QDRANT_URL: str | None = None
     QDRANT_API_KEY: str | None = None
 
