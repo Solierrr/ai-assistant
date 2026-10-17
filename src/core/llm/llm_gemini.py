@@ -7,4 +7,6 @@ from src.core.llm.keys import key_client
 
 def llm_gemini(model=None, temperature=0.7):
     model = model or os.getenv("LLM_MODEL_GEMINI") or "gemini-3.5-flash-lite"
-    return get_chat_model("gemini", model=model, temperature=temperature, client=key_client())
+    return get_chat_model(
+        "gemini", model=model, temperature=temperature, client=key_client()
+    )
