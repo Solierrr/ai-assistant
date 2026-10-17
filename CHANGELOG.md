@@ -1,5 +1,22 @@
 # Changelog
 
+## [3.2.0](https://github.com/Solierrr/ai-assistant/compare/v3.1.2...v3.2.0) (2026-10-17)
+
+
+### Features
+
+* add the local run commands ([48dd939](https://github.com/Solierrr/ai-assistant/commit/48dd9399bd4faaa7b1689fca504807adf3f688f0))
+* langsmith tracing ([#94](https://github.com/Solierrr/ai-assistant/issues/94)) ([311a0d4](https://github.com/Solierrr/ai-assistant/commit/311a0d46d0c69d930a25a4940c5f8ef7d30dd671))
+* langsmith tracing ([#97](https://github.com/Solierrr/ai-assistant/issues/97)) ([76b6e0b](https://github.com/Solierrr/ai-assistant/commit/76b6e0b0b9432e825613270cee05f04d7f8b4b55))
+* read the llm keys from the environment and add openai ([#99](https://github.com/Solierrr/ai-assistant/issues/99)) ([cbaabfa](https://github.com/Solierrr/ai-assistant/commit/cbaabfae66601e88e8b1821e47dc6ed56427e50e))
+* return the api-messenger conversation id from /chat" -m "The front needs it as conversationId for POST /messaging/nps ([#98](https://github.com/Solierrr/ai-assistant/issues/98)) ([222f1dc](https://github.com/Solierrr/ai-assistant/commit/222f1dc5137f9c3ed90421a5561e07d1670795da))
+
+
+### Bug Fixes
+
+* read the embeddings key from the environment ([#102](https://github.com/Solierrr/ai-assistant/issues/102)) ([3e306f5](https://github.com/Solierrr/ai-assistant/commit/3e306f55ee090a1f426409e5647ff99e6d894667))
+* use HTTPBearer for chat auth and raise api-messenger timeout ([#92](https://github.com/Solierrr/ai-assistant/issues/92)) ([580db84](https://github.com/Solierrr/ai-assistant/commit/580db849f512dc3b872aaa8fbd7c79c20433d3a4))
+
 ## [3.1.2](https://github.com/Solierrr/ai-assistant/compare/v3.1.1...v3.1.2) (2026-10-01)
 
 
