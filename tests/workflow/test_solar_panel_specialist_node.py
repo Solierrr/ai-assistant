@@ -3,7 +3,8 @@ from unittest.mock import AsyncMock, Mock
 
 from langchain_core.messages import AIMessage, HumanMessage
 
-import src.workflow.nodes.solar_panel_specialist_node as solar_panel_specialist_node
+from src.tools.units import listar_minhas_unidades
+from src.workflow.nodes import solar_panel_specialist_node
 
 
 def test_solar_panel_specialist_node_returns_agent_response(monkeypatch):
@@ -33,7 +34,8 @@ def test_solar_panel_specialist_node_returns_agent_response(monkeypatch):
     assert result["turn_agents"] == ["solar_panel_specialist"]
     assert result["messages"][0].content.startswith("A placa")
     build_agent.assert_called_once_with(
-        solar_panel_specialist_node.SOLAR_PANEL_SPECIALIST_AGENT, tools=[tool]
+        solar_panel_specialist_node.SOLAR_PANEL_SPECIALIST_AGENT,
+        tools=[tool, listar_minhas_unidades],
     )
     agent.ainvoke.assert_awaited_once_with(
         {"messages": [HumanMessage(content="Qual placa solar eu devo escolher?")]},

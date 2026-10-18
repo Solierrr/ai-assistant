@@ -3,7 +3,8 @@ from unittest.mock import AsyncMock, Mock
 
 from langchain_core.messages import AIMessage, HumanMessage
 
-import src.workflow.nodes.agency_suggester_node as agency_suggester_node
+from src.tools.units import listar_minhas_unidades
+from src.workflow.nodes import agency_suggester_node
 
 
 def test_agency_suggester_node_returns_agent_response(monkeypatch):
@@ -33,7 +34,8 @@ def test_agency_suggester_node_returns_agent_response(monkeypatch):
     assert result["messages"][0].content.startswith("Recomendo")
     get_tools.assert_awaited_once_with("recomendar_fornecedores")
     build_agent.assert_called_once_with(
-        agency_suggester_node.AGENCY_SUGGESTER_AGENT, tools=[tool]
+        agency_suggester_node.AGENCY_SUGGESTER_AGENT,
+        tools=[tool, listar_minhas_unidades],
     )
     agent.ainvoke.assert_awaited_once_with(
         {"messages": [HumanMessage(content="Preciso de um instalador em SP")]},
