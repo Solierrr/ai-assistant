@@ -10,6 +10,7 @@ from src.workflow.nodes.agency_suggester_node import agency_suggester_node
 from src.workflow.nodes.faq_reader_node import faq_reader_node
 from src.workflow.nodes.input_guardrail_node import input_guardrail_node
 from src.workflow.nodes.judge_node import judge_node
+from src.workflow.nodes.operational_delegate_node import operational_delegate_node
 from src.workflow.nodes.orchestrator_node import orchestrator_node
 from src.workflow.nodes.output_guardrail_node import output_guardrail_node
 from src.workflow.nodes.professional_suggester_node import professional_suggester_node
@@ -29,6 +30,7 @@ graph.add_node("professional_suggester", professional_suggester_node)
 graph.add_node("agency_suggester", agency_suggester_node)
 graph.add_node("solar_panel_specialist", solar_panel_specialist_node)
 graph.add_node("solar_calculator", solar_calculator_node)
+graph.add_node("operational_delegate", operational_delegate_node)
 graph.add_node("orchestrator", orchestrator_node)
 graph.add_node("judge", judge_node)
 graph.add_node("output_guardrail", output_guardrail_node)
@@ -52,6 +54,7 @@ graph.add_conditional_edges(
         "agency_suggester": "agency_suggester",
         "solar_panel_specialist": "solar_panel_specialist",
         "solar_calculator": "solar_calculator",
+        "operational_delegate": "operational_delegate",
         "orchestrator": "orchestrator",
         "end": "output_guardrail",
     },
@@ -62,6 +65,8 @@ graph.add_edge("professional_suggester", "router")
 graph.add_edge("agency_suggester", "router")
 graph.add_edge("solar_panel_specialist", "router")
 graph.add_edge("solar_calculator", "router")
+# A resposta do agente operacional (proposta ou confirmação) vai direto ao usuário.
+graph.add_edge("operational_delegate", "output_guardrail")
 graph.add_edge("orchestrator", "judge")
 
 graph.add_conditional_edges(
