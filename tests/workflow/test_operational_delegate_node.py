@@ -129,3 +129,34 @@ def test_decisao_pendente_ja_consultada_nao_entra_em_laco(monkeypatch):
     result = router_node.router_node(state)
 
     assert result["route"] == "orchestrator"
+
+
+def test_resposta_leva_os_metadados_do_turno(monkeypatch):
+    _delegate(monkeypatch)
+
+    result = asyncio.run(node.operational_delegate_node(STATE, CONFIG))
+
+    kwargs = result["messages"][0].additional_kwargs
+    assert kwargs["specialists_used"] == ["operational_delegate"]
+    assert kwargs["workflow_steps"] == ["operational_delegate"]
+
+
+def test_grafo_entrega_a_resposta_operacional_sem_guardrail_de_saida():
+    import importlib
+    import sys
+    from unittest.mock import patch
+
+    from langgraph.checkpoint.memory import InMemorySaver
+
+    with patch(
+        "src.memory.session.mongo_checkpointer.create_mongo_checkpointer",
+        return_value=InMemorySaver(),
+    ):
+        sys.modules.pop("src.workflow.graph.graph", None)
+        graph = importlib.import_module("src.workflow.graph.graph")
+
+    arestas = {(e.source, e.target) for e in graph.compiled_app.get_graph().edges}
+    sys.modules.pop("src.workflow.graph.graph", None)
+
+    assert ("operational_delegate", "__end__") in arestas
+    assert ("operational_delegate", "output_guardrail") not in arestas
