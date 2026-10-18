@@ -12,7 +12,10 @@ from src.workflow.turn_tracking import append_turn_agent
 
 
 async def solar_panel_specialist_node(state: GraphState, config=None) -> dict:
-    tools = [*await get_mcp_tools_by_name("recomendar_ofertas"), *unit_tools()]
+    tools = [
+        *await get_mcp_tools_by_name("recomendar_ofertas", "listar_itens_de_fixacao"),
+        *unit_tools(),
+    ]
     agent = build_agent(SOLAR_PANEL_SPECIALIST_AGENT, tools=tools)
     result = await agent.ainvoke(
         {"messages": messages_with_summary(state)}, config=config
