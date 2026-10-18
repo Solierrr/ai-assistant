@@ -1,10 +1,23 @@
 from langchain_core.messages import SystemMessage
 
+from src.core.security.request_context import current_persona
 from src.workflow.state import GraphState
 
 
 def messages_with_summary(state: GraphState):
     system_messages = []
+
+    if current_persona.get() == "profissional":
+        system_messages.append(
+            SystemMessage(
+                content=(
+                    "Quem pergunta é um profissional técnico em campo, e não um "
+                    "demandante com empresa e unidades cadastradas. Recomende apenas "
+                    "com dados públicos do catálogo e não use estratégias de "
+                    "proximidade nem identificadores de unidade."
+                )
+            )
+        )
 
     user_memory = state.get("user_memory", "")
     if user_memory:
