@@ -11,7 +11,7 @@ class ApiCoreUnavailable(Exception):
     """O api-core não respondeu como esperado."""
 
 
-async def _get(client: httpx.AsyncClient, path: str) -> list[dict]:
+async def _get(client: httpx.AsyncClient, path: str):
     resposta = await client.get(path)
     if resposta.status_code >= 400:
         raise ApiCoreUnavailable(f"{path} respondeu {resposta.status_code}")
@@ -30,7 +30,8 @@ async def list_my_units(
             transport=transport,
         ) as client:
             unidades: list[dict] = []
-            for vinculo in await _get(client, "/user-companies/me/all"):
+            perfil = await _get(client, "/users/me")
+            for vinculo in perfil.get("companyMemberships") or []:
                 company_id = vinculo["companyId"]
                 for unidade in await _get(client, f"/local-units/company/{company_id}"):
                     endereco = unidade.get("address") or {}

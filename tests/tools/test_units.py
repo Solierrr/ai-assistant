@@ -19,8 +19,15 @@ def _transport(handler, pedidos):
 
 
 def _handler(request: httpx.Request) -> httpx.Response:
-    if request.url.path == "/api/user-companies/me/all":
-        return httpx.Response(200, json=[{"companyId": "c1"}])
+    if request.url.path == "/api/users/me":
+        return httpx.Response(
+            200,
+            json={
+                "companyMemberships": [
+                    {"companyId": "c1", "companyName": "ACME", "position": "ADMIN"}
+                ]
+            },
+        )
     if request.url.path == "/api/local-units/company/c1":
         return httpx.Response(
             200,
