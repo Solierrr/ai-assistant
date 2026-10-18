@@ -8,9 +8,11 @@ import src.workflow.nodes.professional_suggester_node as professional_suggester_
 
 def test_professional_suggester_node_returns_agent_response(monkeypatch):
     tool = Mock()
-    tool.name = "buscar_tecnicos_credenciados"
+    tool.name = "recomendar_profissionais"
     monkeypatch.setattr(
-        professional_suggester_node, "get_mcp_tool", AsyncMock(return_value=[tool])
+        professional_suggester_node,
+        "get_mcp_tools_by_name",
+        AsyncMock(return_value=[tool]),
     )
 
     agent = Mock()

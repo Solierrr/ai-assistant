@@ -8,9 +8,11 @@ import src.workflow.nodes.solar_panel_specialist_node as solar_panel_specialist_
 
 def test_solar_panel_specialist_node_returns_agent_response(monkeypatch):
     tool = Mock()
-    tool.name = "listar_ofertas_de_placas"
+    tool.name = "recomendar_ofertas"
     monkeypatch.setattr(
-        solar_panel_specialist_node, "get_mcp_tool", AsyncMock(return_value=[tool])
+        solar_panel_specialist_node,
+        "get_mcp_tools_by_name",
+        AsyncMock(return_value=[tool]),
     )
 
     agent = Mock()
