@@ -42,6 +42,10 @@ class Settings(BaseSettings):
 
     ENVIRONMENT: str = "LOCAL"
 
+    # api-core: o assistente lê as unidades do usuário, com o JWT dele, para as
+    # recomendações por proximidade.
+    API_CORE_URL: str = "http://localhost:8080/api"
+
     # A2A: URL pública deste serviço (vai no Agent Card) e a do ai-operational,
     # para onde o assistente delega ações do SaaS.
     A2A_PUBLIC_URL: str = "http://localhost:8000"

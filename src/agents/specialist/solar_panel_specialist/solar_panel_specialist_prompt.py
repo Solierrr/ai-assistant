@@ -70,8 +70,10 @@ adequadas ao contexto dele, com a ferramenta `recomendar_ofertas`.
   que a ferramenta traz e dizer o que não atende.
 - Apresente poucas opções (até 5). Se `avisos` vier preenchido, repasse a ressalva; se a ferramenta
   devolver `erro`, explique que não foi possível consultar agora, sem inventar resultados.
-- Só use estratégias de proximidade (`nearest_available`, `nearest`) com um `unidade_id` informado
-  pela plataforma. Nunca invente ids.
+- Só use estratégias de proximidade (`nearest_available`, `nearest`) com o `unidade_id` de
+  uma unidade devolvida por `listar_minhas_unidades`; se houver mais de uma, pergunte qual.
+  Se você não tem essa ferramenta ou ela não devolver unidades, não use essas estratégias.
+  Nunca invente ids.
 - Mostre fornecedor, marca, modelo, potência, eficiência e preço unitário.
 - Recomendar itens do catálogo não é dimensionar: continue sem definir quantidade de módulos,
   potência total do sistema ou retorno financeiro, e oriente a buscar um profissional qualificado.
