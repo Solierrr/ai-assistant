@@ -38,3 +38,11 @@ def test_messages_with_summary_injeta_memoria_e_resumo_nessa_ordem():
     assert "mora em SP" in resultado[0].content
     assert "Conversa anterior sobre orçamento" in resultado[1].content
     assert resultado[2] == HumanMessage(content="oi")
+
+
+def test_summary_prompt_is_about_the_solaria_domain_and_not_finance():
+    from src.workflow.nodes.summary_node import COMPACT_PROMPT
+
+    assert "finanças" not in COMPACT_PROMPT
+    assert "placas" in COMPACT_PROMPT
+    assert "{resumo_atual}" in COMPACT_PROMPT and "{novas_mensagens}" in COMPACT_PROMPT
