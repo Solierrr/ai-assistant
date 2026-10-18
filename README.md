@@ -42,7 +42,7 @@ O ranking de placas, profissionais e empresas é determinístico e vem da `api-r
 | `GET /.well-known/agent-card.json` | Agent Card A2A (habilidade `recomendar-produtos`) |
 | `POST /a2a` | JSON-RPC do A2A 1.0; exige o mesmo `Authorization: Bearer`; a persona (`demandante` ou `profissional`) vai em `message.metadata` |
 
-O [openapi.yaml](./openapi.yaml) foi escrito antes e **ainda descreve uma rota `GET /chat/{event_id}` que não existe no código**; ele não cobre o A2A.
+O [openapi.yaml](./openapi.yaml) descreve `POST /chat` e `GET /health`; ele não cobre o A2A.
 
 ## Memória
 
