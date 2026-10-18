@@ -3,14 +3,17 @@ from unittest.mock import AsyncMock, Mock
 
 from langchain_core.messages import AIMessage, HumanMessage
 
-import src.workflow.nodes.solar_panel_specialist_node as solar_panel_specialist_node
+from src.tools.units import listar_minhas_unidades
+from src.workflow.nodes import solar_panel_specialist_node
 
 
 def test_solar_panel_specialist_node_returns_agent_response(monkeypatch):
     tool = Mock()
-    tool.name = "listar_ofertas_de_placas"
+    tool.name = "recomendar_ofertas"
     monkeypatch.setattr(
-        solar_panel_specialist_node, "get_mcp_tool", AsyncMock(return_value=[tool])
+        solar_panel_specialist_node,
+        "get_mcp_tools_by_name",
+        AsyncMock(return_value=[tool]),
     )
 
     agent = Mock()
@@ -31,9 +34,30 @@ def test_solar_panel_specialist_node_returns_agent_response(monkeypatch):
     assert result["turn_agents"] == ["solar_panel_specialist"]
     assert result["messages"][0].content.startswith("A placa")
     build_agent.assert_called_once_with(
-        solar_panel_specialist_node.SOLAR_PANEL_SPECIALIST_AGENT, tools=[tool]
+        solar_panel_specialist_node.SOLAR_PANEL_SPECIALIST_AGENT,
+        tools=[tool, listar_minhas_unidades],
     )
     agent.ainvoke.assert_awaited_once_with(
         {"messages": [HumanMessage(content="Qual placa solar eu devo escolher?")]},
         config=None,
     )
+
+
+def test_solar_panel_specialist_node_pede_placas_e_itens_de_fixacao(monkeypatch):
+    get_tools = AsyncMock(return_value=[])
+    monkeypatch.setattr(solar_panel_specialist_node, "get_mcp_tools_by_name", get_tools)
+    agent = Mock()
+    agent.ainvoke = AsyncMock(
+        return_value={"messages": [AIMessage(content="Resposta")]}
+    )
+    monkeypatch.setattr(
+        solar_panel_specialist_node, "build_agent", Mock(return_value=agent)
+    )
+
+    asyncio.run(
+        solar_panel_specialist_node.solar_panel_specialist_node(
+            {"messages": [HumanMessage(content="Preciso de grampos")]}
+        )
+    )
+
+    get_tools.assert_awaited_once_with("recomendar_ofertas", "listar_itens_de_fixacao")

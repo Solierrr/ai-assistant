@@ -2,9 +2,13 @@
 só, reaproveitando depois (evita reconectar a cada chamada de agente).
 """
 
+import logging
+
 from langchain_mcp_adapters.client import MultiServerMCPClient
 
 from src.core.config.settings import settings
+
+logger = logging.getLogger(__name__)
 
 _tools_cache: list | None = None
 
@@ -35,3 +39,15 @@ async def get_mcp_tool(nome: str):
     a ferramenta relevante pro seu domínio, não todas de uma vez."""
     tools = await get_mcp_tools()
     return [t for t in tools if t.name == nome]
+
+
+async def get_mcp_tools_by_name(*nomes: str) -> list:
+    """Filtra várias tools pelo nome. Avisa no log quando alguma não existe no
+    servidor: sem isso, um nome desatualizado deixaria o especialista sem
+    ferramenta e sem nenhum erro."""
+    tools = await get_mcp_tools()
+    encontradas = [t for t in tools if t.name in nomes]
+    ausentes = set(nomes) - {t.name for t in encontradas}
+    if ausentes:
+        logger.warning("Tools MCP ausentes no servidor: %s", sorted(ausentes))
+    return encontradas
