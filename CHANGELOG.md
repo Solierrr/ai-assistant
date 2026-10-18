@@ -1,5 +1,28 @@
 # Changelog
 
+## [3.1.2](https://github.com/Solierrr/ai-assistant/compare/v3.1.1...v3.1.2) (2026-10-01)
+
+
+### Bug Fixes
+
+* restore infisical env aliases in settings ([#88](https://github.com/Solierrr/ai-assistant/issues/88)) ([3c77cdf](https://github.com/Solierrr/ai-assistant/commit/3c77cdfb024dfcb0d9e10f8d5b9e842f36024893))
+
+## [3.1.1](https://github.com/Solierrr/ai-assistant/compare/v3.1.0...v3.1.1) (2026-09-30)
+
+
+### Bug Fixes
+
+* grant pull-requests write permission to release workflow ([e2297f7](https://github.com/Solierrr/ai-assistant/commit/e2297f74ab9ace05359cdb8c969823fd23f5dfdc))
+* pass vault arguments correctly in PowerShell ([37f38a9](https://github.com/Solierrr/ai-assistant/commit/37f38a9a72f5887f5b8bd13196f5abd3fee4593f))
+* support powershell secret extraction ([d7e13bc](https://github.com/Solierrr/ai-assistant/commit/d7e13bcb109b5e434fe8f3779c016be009c9e73c))
+
+## [3.1.0](https://github.com/Solierrr/ai-assistant/compare/v3.0.0...v3.1.0) (2026-09-26)
+
+
+### Features
+
+* qdrant migration ([#79](https://github.com/Solierrr/ai-assistant/issues/79)) ([e9f624d](https://github.com/Solierrr/ai-assistant/commit/e9f624dcb16bcd3eb131fa837823a848e6630563))
+
 ## [3.0.0](https://github.com/Solierrr/ai-assistant/compare/v0.2.0...v3.0.0) (2026-09-24)
 
 

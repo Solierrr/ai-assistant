@@ -3,7 +3,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from src.api.routes import chat
-from src.core.config.settings import settings
+from src.core.llm.keys import key_client
+from src.core.observability.langsmith_tracing import warn_if_global_tracing
 from src.infra.database.mongo.indexes.user_memory_indexes import (
     ensure_user_memory_indexes,
 )
@@ -11,6 +12,7 @@ from src.infra.database.mongo.indexes.user_memory_indexes import (
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    warn_if_global_tracing()
     await ensure_user_memory_indexes()
     yield
 
@@ -28,11 +30,12 @@ app.include_router(chat.router)
 @app.get("/health")
 def health() -> dict:
     """Responde 'ok' se o servidor subiu, listando configuração ausente."""
-    missing = []
-    if not settings.GOOGLE_API_KEY:
-        missing.append("GOOGLE_API_KEY")
-    if not settings.GROQ_API_KEY:
-        missing.append("GROQ_API_KEY")
+    configured = key_client().providers()
+    missing = [
+        f"{provider.upper()}_API_KEY"
+        for provider in ("gemini", "groq")
+        if provider not in configured
+    ]
 
     return {
         "status": "ok" if not missing else "atencao",

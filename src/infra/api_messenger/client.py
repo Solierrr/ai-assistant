@@ -7,7 +7,7 @@ from src.core.config.settings import settings
 
 async def criar_conversa_chatbot(user_type: str, user_details: dict, user_token: str) -> str:
     """Cria a conversa com o JWT do usuário real."""
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=60.0) as client:
         resp = await client.post(
             f"{settings.API_MESSENGER_URL}/messaging/conversations/chatbot-conversations",
             json={
@@ -25,7 +25,7 @@ async def enviar_mensagem_chatbot(
     conversation_id: str, content: str, metadata: dict | None = None
 ) -> None:
     """Registra a resposta do assistente."""
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=60.0) as client:
         resp = await client.post(
             f"{settings.API_MESSENGER_URL}/internal/messages",
             json={
@@ -39,7 +39,7 @@ async def enviar_mensagem_chatbot(
 
 
 async def enviar_observabilidade(payload: dict) -> None:
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=60.0) as client:
         resp = await client.post(
             f"{settings.API_MESSENGER_URL}/internal/observability",
             json={**payload, "environment": settings.ENVIRONMENT},
@@ -51,7 +51,7 @@ async def enviar_mensagem_usuario(
     conversation_id: str, content: str, user_token: str
 ) -> None:
     """Registra a mensagem do usuário usando seu próprio JWT."""
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=60.0) as client:
         resp = await client.post(
             f"{settings.API_MESSENGER_URL}/messaging/messages",
             json={

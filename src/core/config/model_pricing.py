@@ -6,6 +6,7 @@ logger = logging.getLogger(__name__)
 
 MODEL_PRICING = {
     "gemini-2.5-flash": {"in": 0.0003, "out": 0.0025},
+    "gemini-3.5-flash-lite": {"in": 0.0003, "out": 0.0025},
     "openai/gpt-oss-120b": {"in": 0.00015, "out": 0.00060},
 }
 

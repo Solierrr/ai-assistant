@@ -116,3 +116,22 @@ def test_app_import_does_not_touch_mongo_at_module_level():
 
     importlib.reload(app_module)
     assert app_module.app is not None
+
+def test_chat_returns_messenger_conversation_id(monkeypatch):
+    fake_final_state = {
+        "messages": [AIMessage(content="Oi!", additional_kwargs={})],
+        "messenger_conversation_id": "api-conv-9",
+    }
+    monkeypatch.setattr(
+        "src.api.routes.chat.execute_turn", AsyncMock(return_value=fake_final_state)
+    )
+
+    with _client() as client:
+        response = client.post(
+            "/chat",
+            json={"conversation_id": "conv-1", "message": "oi"},
+            headers=_AUTH_HEADER,
+        )
+
+    assert response.status_code == 200
+    assert response.json()["messenger_conversation_id"] == "api-conv-9"
