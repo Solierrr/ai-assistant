@@ -41,3 +41,23 @@ def test_solar_panel_specialist_node_returns_agent_response(monkeypatch):
         {"messages": [HumanMessage(content="Qual placa solar eu devo escolher?")]},
         config=None,
     )
+
+
+def test_solar_panel_specialist_node_pede_placas_e_itens_de_fixacao(monkeypatch):
+    get_tools = AsyncMock(return_value=[])
+    monkeypatch.setattr(solar_panel_specialist_node, "get_mcp_tools_by_name", get_tools)
+    agent = Mock()
+    agent.ainvoke = AsyncMock(
+        return_value={"messages": [AIMessage(content="Resposta")]}
+    )
+    monkeypatch.setattr(
+        solar_panel_specialist_node, "build_agent", Mock(return_value=agent)
+    )
+
+    asyncio.run(
+        solar_panel_specialist_node.solar_panel_specialist_node(
+            {"messages": [HumanMessage(content="Preciso de grampos")]}
+        )
+    )
+
+    get_tools.assert_awaited_once_with("recomendar_ofertas", "listar_itens_de_fixacao")
