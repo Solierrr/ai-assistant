@@ -66,7 +66,7 @@ graph.add_edge("agency_suggester", "router")
 graph.add_edge("solar_panel_specialist", "router")
 graph.add_edge("solar_calculator", "router")
 # A resposta do agente operacional (proposta ou confirmação) vai direto ao usuário.
-graph.add_edge("operational_delegate", "output_guardrail")
+graph.add_edge("operational_delegate", END)
 graph.add_edge("orchestrator", "judge")
 
 graph.add_conditional_edges(
