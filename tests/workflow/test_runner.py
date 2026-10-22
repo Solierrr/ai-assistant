@@ -292,3 +292,68 @@ def test_execute_turn_inclui_o_tracer_do_langsmith_nos_callbacks_quando_ligado(
     callbacks = workflow.ainvoke.await_args.kwargs["config"]["callbacks"]
     assert len(callbacks) == 2
     assert callbacks[1] is tracer
+
+
+def test_execute_turn_sem_persistir_so_passa_pelo_grafo(monkeypatch):
+    workflow = Mock()
+    workflow.ainvoke = AsyncMock(
+        return_value={"messages": [AIMessage(content="oi", additional_kwargs={})]}
+    )
+    criar_conversa_chatbot = AsyncMock()
+    enviar_mensagem_usuario = AsyncMock()
+    enviar_mensagem_chatbot = AsyncMock()
+    get_user_memory = AsyncMock()
+    agendar = Mock()
+    monkeypatch.setattr(runner, "criar_conversa_chatbot", criar_conversa_chatbot)
+    monkeypatch.setattr(runner, "enviar_mensagem_usuario", enviar_mensagem_usuario)
+    monkeypatch.setattr(runner, "enviar_mensagem_chatbot", enviar_mensagem_chatbot)
+    monkeypatch.setattr(runner, "get_user_memory", get_user_memory)
+    monkeypatch.setattr(runner, "_agendar_atualizacao_memoria", agendar)
+    monkeypatch.setattr(runner, "decode_user_id", Mock(return_value="user-1"))
+    monkeypatch.setattr(runner, "build_tracer", Mock(return_value=None))
+    coletor = object()
+
+    resultado = asyncio.run(
+        runner.execute_turn(
+            "debug:thread",
+            "texto",
+            workflow,
+            user_token="t",
+            persona="profissional",
+            persist=False,
+            extra_callbacks=[coletor],
+            source="debug",
+        )
+    )
+
+    criar_conversa_chatbot.assert_not_awaited()
+    enviar_mensagem_usuario.assert_not_awaited()
+    enviar_mensagem_chatbot.assert_not_awaited()
+    get_user_memory.assert_not_awaited()
+    agendar.assert_not_called()
+    assert resultado["messenger_conversation_id"] is None
+    config_usado = workflow.ainvoke.await_args.kwargs["config"]
+    assert config_usado["callbacks"] == [coletor]
+    assert config_usado["metadata"]["source"] == "debug"
+    assert config_usado["metadata"]["persona"] == "profissional"
+    assert config_usado["metadata"]["conversation_id"] == "debug:thread"
+
+
+def test_execute_turn_padrao_mantem_o_metadata_do_chat(monkeypatch):
+    workflow = Mock()
+    workflow.ainvoke = AsyncMock(
+        return_value={"messages": [AIMessage(content="oi", additional_kwargs={})]}
+    )
+    monkeypatch.setattr(runner, "enviar_mensagem_usuario", AsyncMock())
+    monkeypatch.setattr(runner, "enviar_mensagem_chatbot", AsyncMock())
+    monkeypatch.setattr(runner, "_conversations_por_thread", {})
+    monkeypatch.setattr(
+        runner, "criar_conversa_chatbot", AsyncMock(return_value="api-conv-1")
+    )
+    monkeypatch.setattr(runner, "build_tracer", Mock(return_value=None))
+
+    asyncio.run(runner.execute_turn("c-1", "texto", workflow, user_token="t"))
+
+    metadata = workflow.ainvoke.await_args.kwargs["config"]["metadata"]
+    assert metadata["source"] == "chat"
+    assert "persona" not in metadata
