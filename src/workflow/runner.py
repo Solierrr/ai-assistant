@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from collections.abc import Sequence
 from uuid import uuid4
 
 from langchain_core.messages import HumanMessage
@@ -69,23 +70,36 @@ async def execute_turn(
     workflow,
     user_token: str,
     persona: str = "demandante",
+    *,
+    persist: bool = True,
+    extra_callbacks: Sequence = (),
+    source: str = "chat",
 ) -> dict:
+    """Roda um turno do grafo.
+
+    `persist=False` (modo debug) não cria conversa nem grava mensagens no
+    api-messenger, não registra os steps de observabilidade e não lê nem
+    atualiza a memória de longo prazo. O estado do grafo ainda vai para o
+    checkpointer, sob o `conversation_id` recebido."""
     current_user_token.set(user_token)
     current_persona.set(persona)
     turn_id = str(uuid4())
-    anonymized_user_input, _ = anonymize_text(user_input)
-    api_conversation_id = await _get_or_create_conversation_id(
-        conversation_id, user_token
-    )
+    api_conversation_id: str | None = None
+    tracker: StepTracker | None = None
+    if persist:
+        anonymized_user_input, _ = anonymize_text(user_input)
+        api_conversation_id = await _get_or_create_conversation_id(
+            conversation_id, user_token
+        )
 
-    await enviar_mensagem_usuario(
-        api_conversation_id, anonymized_user_input, user_token
-    )
+        await enviar_mensagem_usuario(
+            api_conversation_id, anonymized_user_input, user_token
+        )
 
-    tracker = StepTracker(conversation_id=api_conversation_id)
+        tracker = StepTracker(conversation_id=api_conversation_id)
 
     user_id = await asyncio.to_thread(decode_user_id, user_token)
-    fatos_existentes = await get_user_memory(user_id) if user_id else []
+    fatos_existentes = await get_user_memory(user_id) if persist and user_id else []
     user_memory = "\n".join(f"- {fato}" for fato in fatos_existentes)
 
     tracer = build_tracer()
@@ -101,16 +115,24 @@ async def execute_turn(
         },
         config={
             "configurable": {"thread_id": conversation_id},
-            "callbacks": [tracker] + ([tracer] if tracer else []),
+            "callbacks": [
+                *([tracker] if tracker else []),
+                *([tracer] if tracer else []),
+                *extra_callbacks,
+            ],
             "metadata": {
-                "conversation_id": api_conversation_id,
+                "conversation_id": api_conversation_id or conversation_id,
                 "environment": settings.ENVIRONMENT,
                 "assistant": "ai-assistant",
-                "source": "chat",
+                "source": source,
+                **({} if persist else {"persona": persona}),
             },
             "tags": [settings.ENVIRONMENT.lower()],
         },
     )
+
+    if not persist:
+        return {**final_state, "messenger_conversation_id": None}
 
     final_message = final_state["messages"][-1]
     anonymized_assistant_response, _ = anonymize_text(final_message.content)
