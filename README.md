@@ -21,7 +21,7 @@ input_guardrail → condense_memory → router ─┬→ faq_reader ────
 | `input_guardrail` | Regex de injeção e de dados internos, anonimiza PII (CNPJ, CPF, telefone, e-mail) e classifica a mensagem por LLM; bloqueia o que não é permitido |
 | `condense_memory` | Resume a conversa quando ela cresce |
 | `router` | Escolhe um especialista por vez, ou o orquestrador quando já há informação suficiente; com uma decisão pendente do agente operacional, devolve a mensagem direto a ele |
-| `faq_reader` | Responde sobre a plataforma com RAG no Qdrant (coleção `solaria-faq`) |
+| `faq_reader` | Responde sobre a plataforma com RAG no Qdrant (coleção `faq`) |
 | `solar_panel_specialist` | Conteúdo técnico, recomendação de placas (`recomendar_ofertas`) e de itens de fixação (`listar_itens_de_fixacao`) |
 | `professional_suggester` | Recomenda profissionais (`recomendar_profissionais`, `listar_profissoes`, `buscar_tecnicos_credenciados`) |
 | `agency_suggester` | Recomenda empresas fornecedoras (`recomendar_fornecedores`) |
