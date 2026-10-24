@@ -48,7 +48,7 @@ O [openapi.yaml](./openapi.yaml) foi escrito antes e **ainda descreve uma rota `
 
 | Tipo | Onde | Detalhe |
 |---|---|---|
-| Conversa (curto prazo) | Mongo, `dbagents.checkpoints_conversas` (checkpointer do LangGraph) | Persiste entre reinícios; expira em `CHECKPOINT_TTL_DIAS` (30) |
+| Conversa (curto prazo) | Mongo, `dbagents.conversation_checkpoints` (checkpointer do LangGraph) | Persiste entre reinícios; expira em `CHECKPOINT_TTL_DIAS` (30) |
 | Mensagens e observabilidade | `api-messenger` | Cada turno grava a mensagem do usuário e a do assistente; o `messenger_conversation_id` volta no `/chat` |
 | Longo prazo (fatos do usuário) | Mongo, `user_memory` | Extraído ao fim do turno, em segundo plano; limitações em [docs/long-term-memory-limitations.md](./docs/long-term-memory-limitations.md) |
 
