@@ -3,7 +3,7 @@
 # Requer: make e sh (Git Bash no Windows). Para `make vault`: Infisical CLI e `infisical login`.
 
 # ---- especifico deste repositorio ----
-VAULT_FOLDERS ?= /database /redis /llm /agent-queue
+VAULT_FOLDERS ?= /database /llm /agent-queue
 ifeq ($(OS),Windows_NT)
 PY ?= .venv/Scripts/python
 else

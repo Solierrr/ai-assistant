@@ -65,7 +65,7 @@ Uma chave por provedor, lidas do ambiente pela `solaria-lib` (`GEMINI_API_KEY`, 
 
 ## Variáveis de ambiente
 
-As chaves e URLs vêm do Infisical (`make vault ENV=local|qa|prod`, pastas `/database /redis /llm /agent-queue`). O [.env.example](./.env.example) lista todas. As principais:
+As chaves e URLs vêm do Infisical (`make vault ENV=local|qa|prod`, pastas `/database /llm /agent-queue`). O [.env.example](./.env.example) lista todas. As principais:
 
 | Variável | Uso |
 |---|---|
@@ -73,7 +73,6 @@ As chaves e URLs vêm do Infisical (`make vault ENV=local|qa|prod`, pastas `/dat
 | `MONGODB_URI` | Checkpointer e memória de longo prazo |
 | `DB_MONGO_AGENTS` | Banco Mongo dos agentes (`dbagents`; `dbagentsqa` em QA) |
 | `API_MESSENGER_URL` | Conversas e mensagens |
-| `UPSTASH_REDIS_*` | Redis dos agentes |
 | `JWT_JWKS_URL`, `JWT_ISSUER` | Validação do JWT do usuário (RS256, emitido pelo `api-auth`) |
 | `MCP_URL`, `MCP_API_KEY` | `mcp-database` |
 | `API_CORE_URL` | Unidades do usuário |
