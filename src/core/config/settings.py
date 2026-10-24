@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     )
 
     API_MESSENGER_URL: str | None = None
+    SERVICE_KEY: str | None = None
 
     JWT_JWKS_URL: str | None = None
     JWT_ISSUER: str | None = None
