@@ -36,7 +36,9 @@ class Settings(BaseSettings):
     )
 
     API_MESSENGER_URL: str | None = None
-    SERVICE_KEY: str | None = None
+    SERVICE_KEY: str | None = Field(
+        None, validation_alias=AliasChoices("SERVICE_KEY", "SERVICE_KEY_AI_ASSISTANT")
+    )
 
     JWT_JWKS_URL: str | None = None
     JWT_ISSUER: str | None = None
