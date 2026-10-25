@@ -38,11 +38,12 @@ O ranking de placas, profissionais e empresas é determinístico e vem da `api-r
 | Rota | Uso |
 |---|---|
 | `POST /chat` | Recebe `{conversation_id, message}` com `Authorization: Bearer <JWT>` e devolve `{response, specialists_used, workflow_steps, messenger_conversation_id}` |
+| `POST /debug/chat` | Só interno, fora do OpenAPI, só para os admins de `DEBUG_ADMIN_SUBS` (inclusive em PROD): o mesmo corpo do `/chat` mais `persona`, e devolve também o `debug` com a entrada e a saída de cada nó. Ver [docs/debug-endpoint.md](./docs/debug-endpoint.md) |
 | `GET /health` | Estado do serviço e das chaves de LLM que faltam |
 | `GET /.well-known/agent-card.json` | Agent Card A2A (habilidade `recomendar-produtos`) |
 | `POST /a2a` | JSON-RPC do A2A 1.0; exige o mesmo `Authorization: Bearer`; a persona (`demandante` ou `profissional`) vai em `message.metadata` |
 
-O [openapi.yaml](./openapi.yaml) foi escrito antes e **ainda descreve uma rota `GET /chat/{event_id}` que não existe no código**; ele não cobre o A2A.
+O [openapi.yaml](./openapi.yaml) descreve `POST /chat` e `GET /health`; ele não cobre o A2A.
 
 ## Memória
 
@@ -80,6 +81,7 @@ As chaves e URLs vêm do Infisical (`make vault ENV=local|qa|prod`, pastas `/dat
 | `QDRANT_URL`, `QDRANT_API_KEY` | RAG do FAQ |
 | `SOLARIA_LANGSMITH_*` | Rastreamento no LangSmith (opcional) |
 | `ENVIRONMENT` | `LOCAL` (padrão), `QA` ou `PROD` |
+| `DEBUG_ADMIN_SUBS` | Modo debug (`POST /debug/chat`): UUIDs (`sub` do JWT) dos admins, separados por vírgula; vazio fecha a rota (inclusive em `PROD`) |
 
 ## Como rodar
 
