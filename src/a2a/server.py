@@ -5,6 +5,7 @@ from ai_lib.a2a import Skill, TurnExecutor, TurnReply, TurnRequest, build_agent_
 from fastapi import FastAPI
 
 from src.core.config.settings import settings
+from src.version import VERSION
 
 _SEM_TOKEN = "É preciso estar autenticado para consultar o assistente."
 
@@ -26,7 +27,7 @@ def build_card():
     return build_agent_card(
         name="Assistente Solaria",
         description="Ajuda a encontrar placas solares, produtos de infraestrutura, profissionais e empresas.",
-        version="0.1.0",
+        version=VERSION,
         base_url=settings.A2A_PUBLIC_URL,
         skills=SKILLS,
     )
