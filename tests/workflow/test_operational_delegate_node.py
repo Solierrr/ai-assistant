@@ -160,3 +160,19 @@ def test_grafo_entrega_a_resposta_operacional_sem_guardrail_de_saida():
 
     assert ("operational_delegate", "__end__") in arestas
     assert ("operational_delegate", "output_guardrail") not in arestas
+
+
+def test_em_debug_a_delegacao_e_simulada_e_nada_sai_para_o_operational(monkeypatch):
+    from src.core.security.request_context import debug_dry_run
+
+    mock = _delegate(monkeypatch)
+    marca = debug_dry_run.set(True)
+    try:
+        result = asyncio.run(node.operational_delegate_node(STATE, CONFIG))
+    finally:
+        debug_dry_run.reset(marca)
+
+    mock.assert_not_awaited()
+    assert result["messages"][0].content.startswith("[debug]")
+    assert result["awaiting_decision"] is False
+    assert result["turn_agents"] == ["operational_delegate"]
