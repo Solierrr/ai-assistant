@@ -63,10 +63,6 @@ class Settings(BaseSettings):
     A2A_PUBLIC_URL: str = "http://localhost:8000"
     A2A_OPERATIONAL_URL: str = "http://localhost:8003"
 
-    TEST_USER_TOKEN: str | None = (
-        None  # só pra uso local via main.py, nunca em produção
-    )
-
     MCP_URL: str = "http://localhost:8001/mcp"
     MCP_API_KEY: str | None = None
 
