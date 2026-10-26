@@ -48,7 +48,7 @@ def _state(content, steps):
         (
             JUDGE_BLOCKED,
             ["orchestrator", "judge_rejected", "judge_blocked", "output_guardrail"],
-            (TurnOutcome.REFUSED, "ANSWER_UNRELIABLE"),
+            (TurnOutcome.REFUSED, "ANSWER_REJECTED"),
         ),
         (
             FALLBACK_RESPONSE,

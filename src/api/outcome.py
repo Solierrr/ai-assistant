@@ -21,7 +21,7 @@ class Reason(StrEnum):
     FALSE_INFORMATION = "FALSE_INFORMATION"
     GUARDRAIL_REFUSED = "GUARDRAIL_REFUSED"
     GUARDRAIL_UNAVAILABLE = "GUARDRAIL_UNAVAILABLE"
-    ANSWER_UNRELIABLE = "ANSWER_UNRELIABLE"
+    ANSWER_REJECTED = "ANSWER_REJECTED"
     OPERATIONAL_AGENT_UNAVAILABLE = "OPERATIONAL_AGENT_UNAVAILABLE"
 
 
@@ -53,7 +53,7 @@ def turn_outcome(final_state: dict) -> tuple[TurnOutcome, Reason | None]:
     if content == FALLBACK_RESPONSE:
         return TurnOutcome.DEGRADED, Reason.GUARDRAIL_UNAVAILABLE
     if "judge_blocked" in steps:
-        return TurnOutcome.REFUSED, Reason.ANSWER_UNRELIABLE
+        return TurnOutcome.REFUSED, Reason.ANSWER_REJECTED
     if content == _INDISPONIVEL:
         return TurnOutcome.TOOL_FAILED, Reason.OPERATIONAL_AGENT_UNAVAILABLE
     return TurnOutcome.ANSWERED, None

@@ -57,7 +57,7 @@ O que acontece dentro da conversa não é erro: volta 200 com `outcome` e `reaso
 |---|---|---|
 | `ANSWERED` | ausente | resposta normal |
 | `REFUSED` | `OUT_OF_SCOPE`, `MANIPULATION_ATTEMPT`, `INTERNAL_DATA_REQUEST`, `FALSE_INFORMATION` ou `GUARDRAIL_REFUSED` | o guardrail de entrada bloqueou a mensagem (pela categoria dele) |
-| `REFUSED` | `ANSWER_UNRELIABLE` | o `judge` reprovou a resposta depois da nova tentativa |
+| `REFUSED` | `ANSWER_REJECTED` | o `judge` reprovou a resposta depois da nova tentativa |
 | `DEGRADED` | `GUARDRAIL_UNAVAILABLE` | o guardrail de entrada ou de saída não conseguiu avaliar e a resposta saiu genérica |
 | `TOOL_FAILED` | `OPERATIONAL_AGENT_UNAVAILABLE` | a delegação ao `ai-operational` falhou |
 
