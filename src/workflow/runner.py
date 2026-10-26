@@ -9,7 +9,11 @@ from src.core.config.settings import settings
 from src.core.guardrails.anonymize import anonymize_text
 from src.core.observability.langsmith_tracing import build_tracer
 from src.core.security.jwt import decode_user_id
-from src.core.security.request_context import current_persona, current_user_token
+from src.core.security.request_context import (
+    current_persona,
+    current_user_token,
+    debug_dry_run,
+)
 from src.infra.api_messenger.client import (
     criar_conversa_chatbot,
     enviar_mensagem_chatbot,
@@ -19,6 +23,7 @@ from src.infra.database.mongo.repositories.user_memory_repository import (
     get_user_memory,
     upsert_user_memory,
 )
+from src.workflow.debug_replay import run_single_node
 from src.workflow.memory.memory_extraction import extrair_fatos_atualizados
 from src.workflow.observability.step_tracker import StepTracker
 
@@ -83,6 +88,7 @@ async def execute_turn(
     checkpointer, sob o `conversation_id` recebido."""
     current_user_token.set(user_token)
     current_persona.set(persona)
+    debug_dry_run.set(not persist)
     turn_id = str(uuid4())
     api_conversation_id: str | None = None
     tracker: StepTracker | None = None
@@ -154,3 +160,37 @@ async def execute_turn(
         _agendar_atualizacao_memoria(user_id, fatos_existentes, ultima_troca)
 
     return {**final_state, "messenger_conversation_id": api_conversation_id}
+
+
+async def execute_single_node(
+    thread_id: str,
+    workflow,
+    user_token: str,
+    *,
+    turn: int,
+    node: str,
+    occurrence: int,
+    overrides: dict[int, dict[int, str]],
+    persona: str = "demandante",
+    extra_callbacks: Sequence = (),
+):
+    current_user_token.set(user_token)
+    current_persona.set(persona)
+    debug_dry_run.set(True)
+    return await run_single_node(
+        workflow,
+        thread_id,
+        turn=turn,
+        node=node,
+        occurrence=occurrence,
+        overrides=overrides,
+        callbacks=[*extra_callbacks, *([tracer] if (tracer := build_tracer()) else [])],
+        metadata={
+            "conversation_id": thread_id,
+            "environment": settings.ENVIRONMENT,
+            "assistant": "ai-assistant",
+            "source": "debug-replay",
+            "persona": persona,
+        },
+        tags=[settings.ENVIRONMENT.lower()],
+    )
