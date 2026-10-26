@@ -1,23 +1,33 @@
-openapi: 3.0.3
+openapi: 3.1.0
 info:
   title: Solaria — ai-assistant
-  description: Contrato HTTP deste serviço. Use um access token emitido pelo api-auth nas operações com bearerAuth.
-    URLs e credenciais são configuradas no cliente HTTP; este arquivo não contém valores privados.
-  version: 0.1.0
+  description: 'Assistente virtual da plataforma para quem procura soluções de energia
+    solar: conversa com a pessoa, identifica a necessidade e ajuda a encontrar placas
+    solares, itens de fixação, profissionais e empresas adequados a cada caso. Autentique
+    com o JWT emitido pelo api-auth (bearerAuth). O protocolo A2A (Agent Card em /.well-known/agent-card.json
+    e JSON-RPC em /a2a) não faz parte deste contrato.'
+  contact:
+    name: Solaria
+    url: https://github.com/Solierrr
+  license:
+    name: CC0-1.0
+    url: https://creativecommons.org/publicdomain/zero/1.0/
+  version: 3.1.2 # x-release-please-version
 servers:
-- url: http://localhost:{port}
-  description: Execução local; ajuste a porta ou substitua o servidor no cliente HTTP.
-  variables:
-    port:
-      default: '8000'
+- url: https://ai-assistant-5ljd.onrender.com
+  description: QA
+- url: http://localhost:8000
+  description: Local
 paths:
   /chat:
     post:
       tags:
-      - chat
-      summary: Enviar mensagem ao assistente
-      description: Processa a mensagem no fluxo do assistente e devolve a resposta na mesma chamada (sem fila).
-      operationId: conversar_chat_post
+      - Conversa
+      summary: Envia uma mensagem ao assistente e devolve a resposta do turno
+      description: 'Roda um turno do assistente com o JWT do usuário. Recusa do guardrail,
+        fallback e falha de ferramenta não são erro HTTP: voltam 200 com outcome e
+        reason. Grava a mensagem do usuário e a do assistente no api-messenger.'
+      operationId: sendChatMessage
       requestBody:
         content:
           application/json:
@@ -32,30 +42,77 @@ paths:
               schema:
                 $ref: '#/components/schemas/ChatResponse'
         '401':
-          description: Cabecalho Authorization ausente ou fora do formato Bearer.
-        '422':
-          description: Validation Error
+          description: JWT ausente ou malformado
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+                $ref: '#/components/schemas/ProblemDetail'
+        '422':
+          description: Corpo inválido
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
+          description: Erro interno inesperado
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
       security:
       - bearerAuth: []
+      x-error-codes:
+      - UNAUTHENTICATED
+      - VALIDATION_FAILED
+      - INTERNAL_ERROR
   /health:
     get:
-      summary: Health
-      description: Informa se as configurações obrigatórias foram fornecidas.
-      operationId: health_health_get
+      tags:
+      - Saúde
+      summary: Indica se o processo está vivo
+      description: Responde UP com a versão do release, sem consultar dependências.
+      operationId: getHealth
       responses:
         '200':
           description: Successful Response
           content:
             application/json:
               schema:
-                additionalProperties: true
-                type: object
-                title: Response Health Health Get
+                $ref: '#/components/schemas/HealthStatus'
+        '500':
+          description: Erro interno inesperado
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
       security: []
+      x-error-codes:
+      - INTERNAL_ERROR
+  /ready:
+    get:
+      tags:
+      - Saúde
+      summary: Indica se o serviço está pronto para atender
+      description: Confere o MongoDB (checkpointer da conversa e memória de longo
+        prazo). Responde 503 com status DOWN quando ele não responde em 2 segundos.
+        Os provedores de LLM ficam de fora porque há fallback entre eles.
+      operationId: getReady
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+        '500':
+          description: Erro interno inesperado
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security: []
+      x-error-codes:
+      - INTERNAL_ERROR
 components:
   schemas:
     ChatRequest:
@@ -63,12 +120,14 @@ components:
         conversation_id:
           type: string
           title: Conversation Id
-          example: b2b-empresa-42
+          examples:
+          - b2b-empresa-42
         message:
           type: string
           minLength: 1
           title: Message
-          example: Preciso de um instalador em SP
+          examples:
+          - Preciso de um instalador em SP
       type: object
       required:
       - conversation_id
@@ -80,6 +139,20 @@ components:
         response:
           type: string
           title: Response
+        outcome:
+          $ref: '#/components/schemas/TurnOutcome'
+          description: 'Resultado do turno: ANSWERED (respondeu), REFUSED (guardrail
+            recusou), DEGRADED (houve fallback) ou TOOL_FAILED (uma ferramenta falhou
+            e a resposta saiu sem ela).'
+        reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Reason
+          description: Código do catálogo de erros; presente quando outcome não é
+            ANSWERED.
+          examples:
+          - OUT_OF_SCOPE
         specialists_used:
           items:
             type: string
@@ -91,53 +164,142 @@ components:
           type: array
           title: Workflow Steps
         messenger_conversation_id:
-          type: string
-          nullable: true
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Messenger Conversation Id
-          description: Id da conversa no api-messenger; e o conversationId do POST /messaging/nps.
+          description: Id da conversa no api-messenger; é o conversationId do POST
+            /messaging/nps.
       type: object
       required:
       - response
+      - outcome
       title: ChatResponse
       description: O que a API devolve no POST /chat.
-    HTTPValidationError:
+    HealthStatus:
       properties:
-        detail:
-          items:
-            $ref: '#/components/schemas/ValidationError'
-          type: array
-          title: Detail
-      type: object
-      title: HTTPValidationError
-    ValidationError:
-      properties:
-        loc:
-          items:
-            anyOf:
-            - type: string
-            - type: integer
-          type: array
-          title: Location
-        msg:
+        status:
           type: string
-          title: Message
-        type:
-          type: string
-          title: Error Type
-        input:
-          title: Input
-        ctx:
-          type: object
-          title: Context
+          title: Status
+          examples:
+          - UP
+        version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Version
+          examples:
+          - 3.1.2
       type: object
       required:
-      - loc
-      - msg
+      - status
+      title: HealthStatus
+    TurnOutcome:
+      type: string
+      enum:
+      - ANSWERED
+      - REFUSED
+      - DEGRADED
+      - TOOL_FAILED
+      title: TurnOutcome
+    ProblemFieldError:
+      description: Campo inválido num erro de validação.
+      properties:
+        field:
+          examples:
+          - message
+          title: Field
+          type: string
+        errorCode:
+          examples:
+          - VALIDATION_FAILED
+          title: Errorcode
+          type: string
+        detail:
+          examples:
+          - String should have at least 1 character
+          title: Detail
+          type: string
+      required:
+      - field
+      - errorCode
+      - detail
+      title: ProblemFieldError
+      type: object
+    ProblemDetail:
+      description: Corpo de todo erro HTTP (application/problem+json), no contrato
+        de erro da Solaria.
+      properties:
+        type:
+          examples:
+          - about:blank
+          title: Type
+          type: string
+        title:
+          examples:
+          - UNAUTHENTICATED
+          title: Title
+          type: string
+        status:
+          examples:
+          - 401
+          title: Status
+          type: integer
+        errorCode:
+          description: Código estável do catálogo de erros.
+          examples:
+          - UNAUTHENTICATED
+          title: Errorcode
+          type: string
+        detail:
+          description: Explicação para quem depura; o front não exibe.
+          examples:
+          - Authorization header deve ser 'Bearer <token>'
+          title: Detail
+          type: string
+        instance:
+          examples:
+          - /chat
+          title: Instance
+          type: string
+        timestamp:
+          format: date-time
+          title: Timestamp
+          type: string
+        traceId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+          title: Traceid
+        errors:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/ProblemFieldError'
+            type: array
+          - type: 'null'
+          default: null
+          description: Presente só em erros de validação.
+          title: Errors
+      required:
       - type
-      title: ValidationError
+      - title
+      - status
+      - errorCode
+      - detail
+      - instance
+      - timestamp
+      title: ProblemDetail
+      type: object
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: Access token de usuário emitido pelo api-auth.
+tags:
+- name: Conversa
+  description: Turnos de conversa com o assistente.
+- name: Saúde
+  description: Estado do processo e das dependências.
+security:
+- bearerAuth: []

@@ -8,11 +8,12 @@ import logging
 import re
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import Field
 
+from src.api.errors import problem
+from src.api.outcome import turn_outcome
 from src.api.schemas.chat import ChatRequest, ChatResponse
 from src.core.config.settings import settings
 from src.core.security.jwt import decode_user_id
@@ -73,6 +74,7 @@ async def _authorize(
 
 @router.post("/chat", response_model=DebugChatResponse)
 async def conversar_com_debug(
+    request: Request,
     requisicao: DebugChatRequest,
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
 ):
@@ -95,12 +97,12 @@ async def conversar_com_debug(
         )
     except Exception as error:
         logger.exception("Falha no turno de debug")
-        return JSONResponse(
-            status_code=500,
-            content={
-                "detail": mask_pii(f"{type(error).__name__}: {error}")[:500],
-                "debug": collector.snapshot(),
-            },
+        return problem(
+            request,
+            500,
+            "INTERNAL_ERROR",
+            mask_pii(f"{type(error).__name__}: {error}")[:500],
+            debug=collector.snapshot(),
         )
 
     final_message = final_state["messages"][-1]
@@ -109,8 +111,11 @@ async def conversar_com_debug(
     debug["environment"] = settings.ENVIRONMENT
     debug["persona"] = requisicao.persona
     debug["persisted"] = False
+    outcome, reason = turn_outcome(final_state)
     return DebugChatResponse(
         response=final_message.content,
+        outcome=outcome,
+        reason=reason,
         specialists_used=metadata.get("specialists_used", []),
         workflow_steps=metadata.get(
             "workflow_steps", final_state.get("turn_agents", [])
