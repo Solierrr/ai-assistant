@@ -76,7 +76,9 @@ async def _thread_turn(workflow, thread_id: str) -> int | None:
     try:
         return await count_turns(workflow, thread_id) - 1
     except Exception:
-        logger.warning("Não foi possível contar os turnos de %s", thread_id)
+        logger.warning(
+            "Não foi possível contar os turnos de %s", thread_id, exc_info=True
+        )
         return None
 
 
