@@ -1,6 +1,8 @@
 import asyncio
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
+import pytest
 from langchain_core.messages import AIMessage
 
 import src.workflow.runner as runner
@@ -359,22 +361,25 @@ def test_execute_turn_padrao_mantem_o_metadata_do_chat(monkeypatch):
     assert "persona" not in metadata
 
 
-def test_execute_turn_debug_com_historico_grava_mensagens_sem_memoria(monkeypatch):
+def _executar_debug_com_historico(monkeypatch, count_turns_mock=None):
     workflow = Mock()
     workflow.ainvoke = AsyncMock(
         return_value={"messages": [AIMessage(content="oi", additional_kwargs={})]}
     )
-    criar_conversa_chatbot = AsyncMock(return_value="api-conv-1")
-    enviar_mensagem_usuario = AsyncMock()
-    enviar_mensagem_chatbot = AsyncMock()
-    get_user_memory = AsyncMock()
-    agendar = Mock()
+    mocks = SimpleNamespace(
+        criar_conversa_chatbot=AsyncMock(return_value="api-conv-1"),
+        enviar_mensagem_usuario=AsyncMock(),
+        enviar_mensagem_chatbot=AsyncMock(),
+        get_user_memory=AsyncMock(),
+        agendar=Mock(),
+        workflow=workflow,
+    )
     monkeypatch.setattr(runner, "_conversations_por_thread", {})
-    monkeypatch.setattr(runner, "criar_conversa_chatbot", criar_conversa_chatbot)
-    monkeypatch.setattr(runner, "enviar_mensagem_usuario", enviar_mensagem_usuario)
-    monkeypatch.setattr(runner, "enviar_mensagem_chatbot", enviar_mensagem_chatbot)
-    monkeypatch.setattr(runner, "get_user_memory", get_user_memory)
-    monkeypatch.setattr(runner, "_agendar_atualizacao_memoria", agendar)
+    monkeypatch.setattr(runner, "criar_conversa_chatbot", mocks.criar_conversa_chatbot)
+    monkeypatch.setattr(runner, "enviar_mensagem_usuario", mocks.enviar_mensagem_usuario)
+    monkeypatch.setattr(runner, "enviar_mensagem_chatbot", mocks.enviar_mensagem_chatbot)
+    monkeypatch.setattr(runner, "get_user_memory", mocks.get_user_memory)
+    monkeypatch.setattr(runner, "_agendar_atualizacao_memoria", mocks.agendar)
     monkeypatch.setattr(runner, "decode_user_id", Mock(return_value="user-1"))
     monkeypatch.setattr(
         runner,
@@ -382,8 +387,9 @@ def test_execute_turn_debug_com_historico_grava_mensagens_sem_memoria(monkeypatc
         Mock(side_effect=[("texto anonimo", {}), ("resposta anonima", {})]),
     )
     monkeypatch.setattr(runner, "build_tracer", Mock(return_value=None))
-
-    resultado = asyncio.run(
+    if count_turns_mock is not None:
+        monkeypatch.setattr(runner, "count_turns", count_turns_mock)
+    mocks.resultado = asyncio.run(
         runner.execute_turn(
             "debug:thread",
             "texto",
@@ -394,89 +400,44 @@ def test_execute_turn_debug_com_historico_grava_mensagens_sem_memoria(monkeypatc
             source="debug",
         )
     )
+    return mocks
 
-    detalhes = criar_conversa_chatbot.await_args.args[1]
+
+def test_execute_turn_debug_com_historico_grava_mensagens_sem_memoria(monkeypatch):
+    mocks = _executar_debug_com_historico(monkeypatch)
+
+    detalhes = mocks.criar_conversa_chatbot.await_args.args[1]
     assert detalhes["assistant"] == runner.ASSISTANT_ID
     assert detalhes["source"] == "debug"
     assert detalhes["threadId"] == "debug:thread"
     assert detalhes["persona"] == "demandante"
-    assert enviar_mensagem_usuario.await_args.args == (
+    assert mocks.enviar_mensagem_usuario.await_args.args == (
         "api-conv-1",
         "texto anonimo",
         "token-abc",
     )
-    assert enviar_mensagem_chatbot.await_args.args[:2] == (
+    assert mocks.enviar_mensagem_chatbot.await_args.args[:2] == (
         "api-conv-1",
         "resposta anonima",
     )
-    get_user_memory.assert_not_awaited()
-    agendar.assert_not_called()
-    callbacks = workflow.ainvoke.await_args.kwargs["config"]["callbacks"]
+    mocks.get_user_memory.assert_not_awaited()
+    mocks.agendar.assert_not_called()
+    callbacks = mocks.workflow.ainvoke.await_args.kwargs["config"]["callbacks"]
     assert callbacks[0].conversation_id == "api-conv-1"
-    assert resultado["messenger_conversation_id"] == "api-conv-1"
+    assert mocks.resultado["messenger_conversation_id"] == "api-conv-1"
 
 
-def test_execute_turn_debug_com_historico_grava_o_turno_da_thread(monkeypatch):
-    workflow = Mock()
-    workflow.ainvoke = AsyncMock(
-        return_value={"messages": [AIMessage(content="oi", additional_kwargs={})]}
-    )
-    enviar_mensagem_chatbot = AsyncMock()
-    monkeypatch.setattr(runner, "_conversations_por_thread", {})
-    monkeypatch.setattr(
-        runner, "criar_conversa_chatbot", AsyncMock(return_value="api-conv-1")
-    )
-    monkeypatch.setattr(runner, "enviar_mensagem_usuario", AsyncMock())
-    monkeypatch.setattr(runner, "enviar_mensagem_chatbot", enviar_mensagem_chatbot)
-    monkeypatch.setattr(runner, "decode_user_id", Mock(return_value=None))
-    monkeypatch.setattr(
-        runner, "anonymize_text", Mock(side_effect=[("a", {}), ("b", {})])
-    )
-    monkeypatch.setattr(runner, "count_turns", AsyncMock(return_value=3))
-    monkeypatch.setattr(runner, "build_tracer", Mock(return_value=None))
+@pytest.mark.parametrize(
+    ("count_turns_mock", "esperado"),
+    [
+        (AsyncMock(return_value=3), {"threadTurn": 2}),
+        (AsyncMock(side_effect=RuntimeError("x")), {}),
+    ],
+)
+def test_execute_turn_debug_com_historico_grava_o_turno_da_thread(
+    monkeypatch, count_turns_mock, esperado
+):
+    mocks = _executar_debug_com_historico(monkeypatch, count_turns_mock)
 
-    asyncio.run(
-        runner.execute_turn(
-            "debug:thread",
-            "texto",
-            workflow,
-            user_token="t",
-            persist=False,
-            save_history=True,
-        )
-    )
-
-    assert enviar_mensagem_chatbot.await_args.args[2]["threadTurn"] == 2
-
-
-def test_execute_turn_debug_sem_contar_turnos_nao_grava_o_turno_da_thread(monkeypatch):
-    workflow = Mock()
-    workflow.ainvoke = AsyncMock(
-        return_value={"messages": [AIMessage(content="oi", additional_kwargs={})]}
-    )
-    enviar_mensagem_chatbot = AsyncMock()
-    monkeypatch.setattr(runner, "_conversations_por_thread", {})
-    monkeypatch.setattr(
-        runner, "criar_conversa_chatbot", AsyncMock(return_value="api-conv-1")
-    )
-    monkeypatch.setattr(runner, "enviar_mensagem_usuario", AsyncMock())
-    monkeypatch.setattr(runner, "enviar_mensagem_chatbot", enviar_mensagem_chatbot)
-    monkeypatch.setattr(runner, "decode_user_id", Mock(return_value=None))
-    monkeypatch.setattr(
-        runner, "anonymize_text", Mock(side_effect=[("a", {}), ("b", {})])
-    )
-    monkeypatch.setattr(runner, "count_turns", AsyncMock(side_effect=RuntimeError("x")))
-    monkeypatch.setattr(runner, "build_tracer", Mock(return_value=None))
-
-    asyncio.run(
-        runner.execute_turn(
-            "debug:thread",
-            "texto",
-            workflow,
-            user_token="t",
-            persist=False,
-            save_history=True,
-        )
-    )
-
-    assert "threadTurn" not in enviar_mensagem_chatbot.await_args.args[2]
+    metadata = mocks.enviar_mensagem_chatbot.await_args.args[2]
+    assert {k: v for k, v in metadata.items() if k == "threadTurn"} == esperado
