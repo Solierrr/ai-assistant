@@ -1,7 +1,9 @@
 """Modo debug do assistente: roda um turno e devolve o que cada nó do grafo recebeu e
 devolveu. Só para uso interno: sempre ativo, mas restrito aos admins, fora do
-OpenAPI e restrito aos `sub` de `DEBUG_ADMIN_SUBS`. Não grava nada no api-messenger nem
-na memória de longo prazo."""
+OpenAPI e restrito aos `sub` de `DEBUG_ADMIN_SUBS`. O turno normal grava conversa,
+mensagens e steps no api-messenger (para aparecer em Conversas e Dashboards), mas
+não grava na memória de longo prazo; a execução personalizada de um nó não grava
+nada."""
 
 import asyncio
 import logging
@@ -135,6 +137,7 @@ async def conversar_com_debug(
             user_token=token,
             persona=requisicao.persona,
             persist=False,
+            save_history=True,
             extra_callbacks=[collector],
             source="debug",
         )
@@ -156,7 +159,7 @@ async def conversar_com_debug(
     debug = collector.snapshot()
     debug["environment"] = settings.ENVIRONMENT
     debug["persona"] = requisicao.persona
-    debug["persisted"] = False
+    debug["persisted"] = True
     debug["turn"] = await _last_turn(compiled_app, thread_id)
     return DebugChatResponse(
         response=final_message.content,
@@ -164,7 +167,7 @@ async def conversar_com_debug(
         workflow_steps=metadata.get(
             "workflow_steps", final_state.get("turn_agents", [])
         ),
-        messenger_conversation_id=None,
+        messenger_conversation_id=final_state.get("messenger_conversation_id"),
         debug=debug,
     )
 

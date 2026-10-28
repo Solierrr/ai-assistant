@@ -140,11 +140,12 @@ def test_admin_recebe_resposta_com_debug_dos_nos(debug_ligado, monkeypatch):
     assert body["debug"]["nodes"][0]["node"] == "router"
     assert body["debug"]["environment"] == "QA"
     assert body["debug"]["persona"] == "profissional"
-    assert body["debug"]["persisted"] is False
+    assert body["debug"]["persisted"] is True
     assert chamada["thread_id"] == f"debug:{ADMIN_SUB}:conv-1"
     assert chamada["message"] == "oi"
     kwargs = chamada["kwargs"]
     assert kwargs["persist"] is False
+    assert kwargs["save_history"] is True
     assert kwargs["source"] == "debug"
     assert kwargs["persona"] == "profissional"
     assert kwargs["user_token"] == "jwt-de-teste"
