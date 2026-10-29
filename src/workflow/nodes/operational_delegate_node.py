@@ -4,7 +4,11 @@ from ai_lib.a2a import DelegationError, delegate
 from langchain_core.messages import AIMessage, HumanMessage
 
 from src.core.config.settings import settings
-from src.core.security.request_context import current_persona, current_user_token
+from src.core.security.request_context import (
+    current_persona,
+    current_user_token,
+    debug_dry_run,
+)
 from src.workflow.state import GraphState
 from src.workflow.turn_tracking import append_turn_agent
 
@@ -15,6 +19,10 @@ _INDISPONIVEL = (
     "Tente novamente em instantes."
 )
 _SEM_TOKEN = "Para executar ações na plataforma é preciso estar autenticado."
+_SIMULADO = (
+    "[debug] Delegação ao ai-operational simulada: nenhuma ação foi enviada. "
+    "Use o debug do ai-operational para testar esse fluxo."
+)
 
 
 def _message(text: str, turn_agents: list[str]) -> AIMessage:
@@ -47,6 +55,13 @@ async def operational_delegate_node(state: GraphState, config=None) -> dict:
     if not token:
         return {
             "messages": [_message(_SEM_TOKEN, turn_agents)],
+            "turn_agents": turn_agents,
+            "awaiting_decision": False,
+        }
+
+    if debug_dry_run.get():
+        return {
+            "messages": [_message(_SIMULADO, turn_agents)],
             "turn_agents": turn_agents,
             "awaiting_decision": False,
         }
