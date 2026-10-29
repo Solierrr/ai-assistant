@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import weakref
 from collections.abc import Sequence
 from uuid import uuid4
 
@@ -8,6 +9,7 @@ from langchain_core.messages import HumanMessage
 from src.core.config.settings import settings
 from src.core.guardrails.anonymize import anonymize_text
 from src.core.observability.langsmith_tracing import build_tracer
+from src.core.security.conversation_access import ConversationAccessDenied
 from src.core.security.jwt import decode_user_id
 from src.core.security.request_context import (
     current_persona,
@@ -32,6 +34,31 @@ logger = logging.getLogger(__name__)
 ASSISTANT_ID = "assistant"
 _conversations_por_thread: dict[str, str] = {}
 _background_tasks: set[asyncio.Task] = set()
+_locks: weakref.WeakValueDictionary[str, asyncio.Lock] = weakref.WeakValueDictionary()
+
+
+def _lock_for(conversation_id: str) -> asyncio.Lock:
+    lock = _locks.get(conversation_id)
+    if lock is None:
+        lock = _locks[conversation_id] = asyncio.Lock()
+    return lock
+
+
+async def _require_owner(workflow, conversation_id: str, user_id: str | None) -> None:
+    if not user_id:
+        if settings.ENVIRONMENT.upper() == "LOCAL":
+            return
+        raise ConversationAccessDenied("Nao foi possivel identificar o usuario.")
+    try:
+        snapshot = await workflow.aget_state(
+            {"configurable": {"thread_id": conversation_id}}
+        )
+        owner = (snapshot.values or {}).get("user_id")
+    except Exception:
+        logger.warning("Nao foi possivel ler o dono da conversa", exc_info=True)
+        return
+    if owner and str(owner).lower() != user_id.lower():
+        raise ConversationAccessDenied("Esta conversa pertence a outro usuario.")
 
 
 async def _atualizar_memoria(
@@ -94,6 +121,33 @@ async def execute_turn(
     extra_callbacks: Sequence = (),
     source: str = "chat",
 ) -> dict:
+    """Um turno por vez em cada conversa, e só o dono dela pode continuá-la."""
+    async with _lock_for(conversation_id):
+        return await _execute_turn(
+            conversation_id,
+            user_input,
+            workflow,
+            user_token,
+            persona,
+            persist=persist,
+            save_history=save_history,
+            extra_callbacks=extra_callbacks,
+            source=source,
+        )
+
+
+async def _execute_turn(
+    conversation_id: str,
+    user_input: str,
+    workflow,
+    user_token: str,
+    persona: str = "demandante",
+    *,
+    persist: bool = True,
+    save_history: bool = False,
+    extra_callbacks: Sequence = (),
+    source: str = "chat",
+) -> dict:
     """Roda um turno do grafo.
 
     `persist=False` (modo debug) não lê nem atualiza a memória de longo prazo e, por
@@ -105,6 +159,8 @@ async def execute_turn(
     current_user_token.set(user_token)
     current_persona.set(persona)
     debug_dry_run.set(not persist)
+    user_id = await asyncio.to_thread(decode_user_id, user_token)
+    await _require_owner(workflow, conversation_id, user_id)
     turn_id = str(uuid4())
     api_conversation_id: str | None = None
     tracker: StepTracker | None = None
@@ -127,7 +183,6 @@ async def execute_turn(
 
         tracker = StepTracker(conversation_id=api_conversation_id)
 
-    user_id = await asyncio.to_thread(decode_user_id, user_token)
     fatos_existentes = await get_user_memory(user_id) if persist and user_id else []
     user_memory = "\n".join(f"- {fato}" for fato in fatos_existentes)
 
