@@ -9,7 +9,11 @@ def clean_env(monkeypatch):
         "DB_MONGO_URI",
         "MONGO_URI",
         "MONGODB_URI",
-        "DB_MONGO_AGENTS",
+        "UPSTASH_AGENTS_HOST",
+        "UPSTASH_AGENTS_PORT",
+        "UPSTASH_AGENTS_USERNAME",
+        "UPSTASH_AGENTS_PASSWORD",
+        "UPSTASH_REDIS_HOST",
     ):
         monkeypatch.delenv(name, raising=False)
 
@@ -36,11 +40,15 @@ def test_mongo_uri_defaults_to_localhost():
     assert Settings(_env_file=None).MONGO_URI == "mongodb://localhost:27017"
 
 
-def test_agents_database_defaults_to_dbagents():
-    assert Settings(_env_file=None).DB_MONGO_AGENTS == "dbagents"
+def test_redis_reads_infisical_names(monkeypatch):
+    monkeypatch.setenv("UPSTASH_AGENTS_HOST", "agents.upstash.io")
+    monkeypatch.setenv("UPSTASH_AGENTS_PORT", "6380")
+    monkeypatch.setenv("UPSTASH_AGENTS_USERNAME", "agent")
+    monkeypatch.setenv("UPSTASH_AGENTS_PASSWORD", "secret")
 
+    settings = Settings(_env_file=None)
 
-def test_agents_database_reads_env(monkeypatch):
-    monkeypatch.setenv("DB_MONGO_AGENTS", "dbagentsqa")
-
-    assert Settings(_env_file=None).DB_MONGO_AGENTS == "dbagentsqa"
+    assert settings.UPSTASH_REDIS_HOST == "agents.upstash.io"
+    assert settings.UPSTASH_REDIS_PORT == 6380
+    assert settings.UPSTASH_REDIS_USERNAME == "agent"
+    assert settings.UPSTASH_REDIS_PASSWORD == "secret"

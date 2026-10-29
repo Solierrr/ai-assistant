@@ -21,7 +21,7 @@ input_guardrail → condense_memory → router ─┬→ faq_reader ────
 | `input_guardrail` | Regex de injeção e de dados internos, anonimiza PII (CNPJ, CPF, telefone, e-mail) e classifica a mensagem por LLM; bloqueia o que não é permitido |
 | `condense_memory` | Resume a conversa quando ela cresce |
 | `router` | Escolhe um especialista por vez, ou o orquestrador quando já há informação suficiente; com uma decisão pendente do agente operacional, devolve a mensagem direto a ele |
-| `faq_reader` | Responde sobre a plataforma com RAG no Qdrant (coleção `faq`) |
+| `faq_reader` | Responde sobre a plataforma com RAG no Qdrant (coleção `solaria-faq`) |
 | `solar_panel_specialist` | Conteúdo técnico, recomendação de placas (`recomendar_ofertas`) e de itens de fixação (`listar_itens_de_fixacao`) |
 | `professional_suggester` | Recomenda profissionais (`recomendar_profissionais`, `listar_profissoes`, `buscar_tecnicos_credenciados`) |
 | `agency_suggester` | Recomenda empresas fornecedoras (`recomendar_fornecedores`) |
@@ -49,7 +49,7 @@ O [openapi.yaml](./openapi.yaml) descreve `POST /chat` e `GET /health`; ele não
 
 | Tipo | Onde | Detalhe |
 |---|---|---|
-| Conversa (curto prazo) | Mongo, `dbagents.conversation_checkpoints` (checkpointer do LangGraph) | Persiste entre reinícios; expira em `CHECKPOINT_TTL_DIAS` (30) |
+| Conversa (curto prazo) | Mongo, `assessor_inteligente.checkpoints_conversas` (checkpointer do LangGraph) | Persiste entre reinícios; expira em `CHECKPOINT_TTL_DIAS` (30) |
 | Mensagens e observabilidade | `api-messenger` | Cada turno grava a mensagem do usuário e a do assistente; o `messenger_conversation_id` volta no `/chat` |
 | Longo prazo (fatos do usuário) | Mongo, `user_memory` | Extraído ao fim do turno, em segundo plano; limitações em [docs/long-term-memory-limitations.md](./docs/long-term-memory-limitations.md) |
 
@@ -66,14 +66,14 @@ Uma chave por provedor, lidas do ambiente pela `solaria-lib` (`GEMINI_API_KEY`, 
 
 ## Variáveis de ambiente
 
-As chaves e URLs vêm do Infisical (`make vault ENV=local|qa|prod`, pastas `/database /llm /agent-queue`). O [.env.example](./.env.example) lista todas. As principais:
+As chaves e URLs vêm do Infisical (`make vault ENV=local|qa|prod`, pastas `/database /redis /llm /agent-queue`). O [.env.example](./.env.example) lista todas. As principais:
 
 | Variável | Uso |
 |---|---|
 | `GEMINI_API_KEY`, `GROQ_API_KEY`, `OPENAI_API_KEY`, `LLM_PROVIDER_ORDER`, `LLM_MODEL_OPENAI` | LLM |
 | `MONGODB_URI` | Checkpointer e memória de longo prazo |
-| `DB_MONGO_AGENTS` | Banco Mongo dos agentes (`dbagents`; `dbagentsqa` em QA) |
 | `API_MESSENGER_URL` | Conversas e mensagens |
+| `UPSTASH_REDIS_*` | Redis dos agentes |
 | `JWT_JWKS_URL`, `JWT_ISSUER` | Validação do JWT do usuário (RS256, emitido pelo `api-auth`) |
 | `CORS_ALLOWED_ORIGINS` | Origens do navegador autorizadas a chamar a API (CORS), separadas por vírgula; sem credenciais e sem `*` |
 | `MCP_URL`, `MCP_API_KEY` | `mcp-database` |

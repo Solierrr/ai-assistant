@@ -18,7 +18,7 @@ from src.core.config.settings import settings
 from src.core.llm.keys import key_client
 
 _PDF_PATH = os.path.join(os.path.dirname(__file__), "..", "FAQ_v1.pdf")
-_COLLECTION_NAME = "faq"
+_COLLECTION_NAME = "solaria-faq"
 _NAMESPACE_CHUNKS = uuid.UUID("f4f5f6f7-0000-0000-0000-000000000000")
 
 _embeddings = None

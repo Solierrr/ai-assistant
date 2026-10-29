@@ -10,3 +10,4 @@ current_user_token: ContextVar[str | None] = ContextVar(
     "current_user_token", default=None
 )
 current_persona: ContextVar[str] = ContextVar("current_persona", default="demandante")
+debug_dry_run: ContextVar[bool] = ContextVar("debug_dry_run", default=False)
