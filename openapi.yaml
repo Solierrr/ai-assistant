@@ -32,13 +32,15 @@ paths:
               schema:
                 $ref: '#/components/schemas/ChatResponse'
         '401':
-          description: Cabecalho Authorization ausente ou fora do formato Bearer.
+          description: Cabecalho Authorization ausente ou fora do formato Bearer, ou access token invalido ou expirado.
         '422':
           description: Validation Error
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+        '503':
+          description: Validacao do access token nao configurada fora do ambiente LOCAL.
       security:
       - bearerAuth: []
   /health:
