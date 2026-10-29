@@ -37,7 +37,7 @@ O ranking de placas, profissionais e empresas é determinístico e vem da `api-r
 
 | Rota | Uso |
 |---|---|
-| `POST /chat` | Recebe `{conversation_id, message}` com `Authorization: Bearer <JWT>` e devolve `{response, specialists_used, workflow_steps, messenger_conversation_id}` |
+| `POST /chat` | Recebe `{conversation_id, message}` com `Authorization: Bearer <JWT>` e devolve `{response, specialists_used, workflow_steps, messenger_conversation_id}`; o JWT do `api-auth` é validado antes do turno (`401` se inválido ou expirado; `503` fora do `LOCAL` sem `JWT_JWKS_URL`) |
 | `POST /debug/chat` | Só interno, fora do OpenAPI, só para os admins de `DEBUG_ADMIN_SUBS` (inclusive em PROD): o mesmo corpo do `/chat` mais `persona`, e devolve também o `debug` com a entrada e a saída de cada nó. Ver [docs/debug-endpoint.md](./docs/debug-endpoint.md) |
 | `GET /health` | Estado do serviço e das chaves de LLM que faltam |
 | `GET /.well-known/agent-card.json` | Agent Card A2A (habilidade `recomendar-produtos`) |
@@ -75,6 +75,7 @@ As chaves e URLs vêm do Infisical (`make vault ENV=local|qa|prod`, pastas `/dat
 | `DB_MONGO_AGENTS` | Banco Mongo dos agentes (`dbagents`; `dbagentsqa` em QA) |
 | `API_MESSENGER_URL` | Conversas e mensagens |
 | `JWT_JWKS_URL`, `JWT_ISSUER` | Validação do JWT do usuário (RS256, emitido pelo `api-auth`) |
+| `CORS_ALLOWED_ORIGINS` | Origens do navegador autorizadas a chamar a API (CORS), separadas por vírgula; sem credenciais e sem `*` |
 | `MCP_URL`, `MCP_API_KEY` | `mcp-database` |
 | `API_CORE_URL` | Unidades do usuário |
 | `A2A_PUBLIC_URL`, `A2A_OPERATIONAL_URL` | Agent Card e destino da delegação de ações |
