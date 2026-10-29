@@ -23,7 +23,6 @@ qdrant-client
 langchain-qdrant
 pypdf
 certifi
-redis
 pyjwt
 langsmith
 solaria-network[a2a]>=0.2,<0.3
