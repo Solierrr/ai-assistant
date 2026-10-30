@@ -1,5 +1,39 @@
 # Changelog
 
+## [3.2.0](https://github.com/Solierrr/ai-assistant/compare/v3.1.2...v3.2.0) (2026-10-30)
+
+
+### Features
+
+* add opentelemetry signals and problem+json errors ([#129](https://github.com/Solierrr/ai-assistant/issues/129)) ([d69d748](https://github.com/Solierrr/ai-assistant/commit/d69d748b7115872dde64a59f277c8fcdc09b1020))
+* add the local run commands ([48dd939](https://github.com/Solierrr/ai-assistant/commit/48dd9399bd4faaa7b1689fca504807adf3f688f0))
+* allow the configured web origins through cors ([#114](https://github.com/Solierrr/ai-assistant/issues/114)) ([744a317](https://github.com/Solierrr/ai-assistant/commit/744a317547d5ea696a88729c452061e90ca426b6))
+* debug endpoint ([#115](https://github.com/Solierrr/ai-assistant/issues/115)) ([f68429d](https://github.com/Solierrr/ai-assistant/commit/f68429dc0218b566a6c6f3d578cd08b048f37c2a))
+* debug salvar historico ([#123](https://github.com/Solierrr/ai-assistant/issues/123)) ([9efacbc](https://github.com/Solierrr/ai-assistant/commit/9efacbc7fa6f20c51cca3a5fc7a44b4ce4ef7b77))
+* langsmith tracing ([#94](https://github.com/Solierrr/ai-assistant/issues/94)) ([311a0d4](https://github.com/Solierrr/ai-assistant/commit/311a0d46d0c69d930a25a4940c5f8ef7d30dd671))
+* langsmith tracing ([#97](https://github.com/Solierrr/ai-assistant/issues/97)) ([76b6e0b](https://github.com/Solierrr/ai-assistant/commit/76b6e0b0b9432e825613270cee05f04d7f8b4b55))
+* let the assistant read the user units for proximity recommendations ([#107](https://github.com/Solierrr/ai-assistant/issues/107)) ([a97970f](https://github.com/Solierrr/ai-assistant/commit/a97970fa84700afe6401e27e9c6d1f179db85e29))
+* let the panel specialist list infrastructure items ([#108](https://github.com/Solierrr/ai-assistant/issues/108)) ([83a5eae](https://github.com/Solierrr/ai-assistant/commit/83a5eae5b16353fde35d2755d4225edc0ae75c70))
+* read the llm keys from the environment and add openai ([#99](https://github.com/Solierrr/ai-assistant/issues/99)) ([cbaabfa](https://github.com/Solierrr/ai-assistant/commit/cbaabfae66601e88e8b1821e47dc6ed56427e50e))
+* recommend products, professionals and suppliers from the ranked feeds ([#104](https://github.com/Solierrr/ai-assistant/issues/104)) ([d26f0fc](https://github.com/Solierrr/ai-assistant/commit/d26f0fcc821bba77fd6884137b86d6025c230623))
+* return the api-messenger conversation id from /chat" -m "The front needs it as conversationId for POST /messaging/nps ([#98](https://github.com/Solierrr/ai-assistant/issues/98)) ([222f1dc](https://github.com/Solierrr/ai-assistant/commit/222f1dc5137f9c3ed90421a5561e07d1670795da))
+* run a single node with edited prompts in the debug endpoint ([#122](https://github.com/Solierrr/ai-assistant/issues/122)) ([d64fcd5](https://github.com/Solierrr/ai-assistant/commit/d64fcd5f13dc6ce922de5b20e64b5a0e3695f964))
+* send the service key to the api-messenger internal routes ([#116](https://github.com/Solierrr/ai-assistant/issues/116)) ([35aeb27](https://github.com/Solierrr/ai-assistant/commit/35aeb27923f50da0cdc786837f64698a7a80445b))
+* serve a2a and delegate platform actions to the operational agent ([#105](https://github.com/Solierrr/ai-assistant/issues/105)) ([eecc9ff](https://github.com/Solierrr/ai-assistant/commit/eecc9ffc71cb1ef26d8b9928321abae98a8882b9))
+* show the tool calls and the available tools in the debug ([#130](https://github.com/Solierrr/ai-assistant/issues/130)) ([b413c42](https://github.com/Solierrr/ai-assistant/commit/b413c423ad44dd6eb8fba28e45d87ebab54b084f))
+* standardize the service contract ([#120](https://github.com/Solierrr/ai-assistant/issues/120)) ([f9ec94f](https://github.com/Solierrr/ai-assistant/commit/f9ec94fc38324027661b31b3de4d33fc92aa67ed))
+* validate the chat jwt before running the turn ([#124](https://github.com/Solierrr/ai-assistant/issues/124)) ([1bd1e39](https://github.com/Solierrr/ai-assistant/commit/1bd1e3934092d38fb9fa75999d8dfebc7886323a))
+
+
+### Bug Fixes
+
+* bind chat conversations to their owner ([#126](https://github.com/Solierrr/ai-assistant/issues/126)) ([8da6920](https://github.com/Solierrr/ai-assistant/commit/8da6920aa157116ff4a46d73b635ede82b180a52))
+* deliver the operational agent reply without the output guardrail ([#106](https://github.com/Solierrr/ai-assistant/issues/106)) ([cd8bb20](https://github.com/Solierrr/ai-assistant/commit/cd8bb200794e900e6a6201a4fc098a168100596f))
+* fall back to the own service key name ([#117](https://github.com/Solierrr/ai-assistant/issues/117)) ([0830348](https://github.com/Solierrr/ai-assistant/commit/0830348acf69570ec7b7dc7e6f566cd1c77c3d5a))
+* read the embeddings key from the environment ([#102](https://github.com/Solierrr/ai-assistant/issues/102)) ([3e306f5](https://github.com/Solierrr/ai-assistant/commit/3e306f55ee090a1f426409e5647ff99e6d894667))
+* read the user units from users me ([#109](https://github.com/Solierrr/ai-assistant/issues/109)) ([4842638](https://github.com/Solierrr/ai-assistant/commit/4842638b35c1a3f7904fd61005a9a6e49e2ca646))
+* use HTTPBearer for chat auth and raise api-messenger timeout ([#92](https://github.com/Solierrr/ai-assistant/issues/92)) ([580db84](https://github.com/Solierrr/ai-assistant/commit/580db849f512dc3b872aaa8fbd7c79c20433d3a4))
+
 ## [3.1.2](https://github.com/Solierrr/ai-assistant/compare/v3.1.1...v3.1.2) (2026-10-01)
 
 
