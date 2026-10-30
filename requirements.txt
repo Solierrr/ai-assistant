@@ -28,3 +28,4 @@ pyjwt
 langsmith
 solaria-network[a2a]>=0.2,<0.3
 python-dotenv
+pyyaml

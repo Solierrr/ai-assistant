@@ -10,11 +10,13 @@ import logging
 import re
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field, field_validator
 
+from src.api.errors import problem
+from src.api.outcome import TurnOutcome, turn_outcome
 from src.api.schemas.chat import ChatRequest, ChatResponse
 from src.core.config.settings import settings
 from src.core.security.jwt import decode_user_id
@@ -116,6 +118,7 @@ async def _authorize(
 
 @router.post("/chat", response_model=DebugChatResponse)
 async def conversar_com_debug(
+    request: Request,
     requisicao: DebugChatRequest,
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
 ):
@@ -143,14 +146,14 @@ async def conversar_com_debug(
         )
     except Exception as error:
         logger.exception("Falha no turno de debug")
-        return JSONResponse(
-            status_code=500,
-            content={
-                "detail": mask_pii(f"{type(error).__name__}: {error}")[:500],
-                "debug": {
-                    **collector.snapshot(),
-                    "turn": await _last_turn(compiled_app, thread_id),
-                },
+        return problem(
+            request,
+            500,
+            "INTERNAL_ERROR",
+            mask_pii(f"{type(error).__name__}: {error}")[:500],
+            debug={
+                **collector.snapshot(),
+                "turn": await _last_turn(compiled_app, thread_id),
             },
         )
 
@@ -161,8 +164,11 @@ async def conversar_com_debug(
     debug["persona"] = requisicao.persona
     debug["persisted"] = True
     debug["turn"] = await _last_turn(compiled_app, thread_id)
+    outcome, reason = turn_outcome(final_state)
     return DebugChatResponse(
         response=final_message.content,
+        outcome=outcome,
+        reason=reason,
         specialists_used=metadata.get("specialists_used", []),
         workflow_steps=metadata.get(
             "workflow_steps", final_state.get("turn_agents", [])
@@ -223,4 +229,4 @@ async def _executar_no(requisicao, workflow, token, thread_id, collector, sub):
         "overrides_applied": aplicados,
         "next": list(proximos),
     }
-    return DebugChatResponse(response="", debug=debug)
+    return DebugChatResponse(response="", outcome=TurnOutcome.ANSWERED, debug=debug)

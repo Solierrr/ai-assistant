@@ -1,34 +1,50 @@
+from unittest.mock import AsyncMock
+
 from fastapi.testclient import TestClient
 
 from src.api.app import app
+from src.version import VERSION
 
 client = TestClient(app)
 
 
-class _Keys:
-    def __init__(self, providers):
-        self._providers = providers
-
-    def providers(self):
-        return self._providers
-
-
-def test_health_returns_ok_when_keys_present(monkeypatch):
-    monkeypatch.setattr("src.api.app.key_client", lambda: _Keys(["gemini", "groq"]))
-
+def test_health_returns_up_with_version():
     response = client.get("/health")
 
     assert response.status_code == 200
-    assert response.json() == {"status": "ok", "missing_settings": []}
+    assert response.json() == {"status": "UP", "version": VERSION}
 
 
-def test_health_reports_missing_keys(monkeypatch):
-    monkeypatch.setattr("src.api.app.key_client", lambda: _Keys([]))
+def test_ready_returns_up_when_mongo_answers(monkeypatch):
+    monkeypatch.setattr("src.api.routes.health.ping_mongo", AsyncMock())
 
-    response = client.get("/health")
+    response = client.get("/ready")
 
     assert response.status_code == 200
-    body = response.json()
-    assert body["status"] == "atencao"
-    assert "GEMINI_API_KEY" in body["missing_settings"]
-    assert "GROQ_API_KEY" in body["missing_settings"]
+    assert response.json() == {"status": "UP"}
+
+
+def test_ready_returns_503_when_mongo_fails(monkeypatch):
+    monkeypatch.setattr(
+        "src.api.routes.health.ping_mongo",
+        AsyncMock(side_effect=ConnectionError("mongo fora")),
+    )
+
+    response = client.get("/ready")
+
+    assert response.status_code == 503
+    assert response.json() == {"status": "DOWN"}
+
+
+def test_ready_returns_503_when_mongo_times_out(monkeypatch):
+    async def slow_ping():
+        import asyncio
+
+        await asyncio.sleep(1)
+
+    monkeypatch.setattr("src.api.routes.health.READY_TIMEOUT_SECONDS", 0.01)
+    monkeypatch.setattr("src.api.routes.health.ping_mongo", slow_ping)
+
+    response = client.get("/ready")
+
+    assert response.status_code == 503
