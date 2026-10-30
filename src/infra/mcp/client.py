@@ -13,13 +13,24 @@ logger = logging.getLogger(__name__)
 _tools_cache: list | None = None
 
 
+def _headers() -> dict[str, str]:
+    """Chave de serviço do assistente; a x-api-key antiga segue junto só enquanto
+    MCP_API_KEY estiver definida, até o mcp-database exigir o X-Service-Key."""
+    headers = {}
+    if settings.SERVICE_KEY:
+        headers["X-Service-Key"] = settings.SERVICE_KEY
+    if settings.MCP_API_KEY:
+        headers["x-api-key"] = settings.MCP_API_KEY
+    return headers
+
+
 async def _carregar_tools() -> list:
     client = MultiServerMCPClient(
         {
             "solaria-negocio": {
                 "url": settings.MCP_URL,
                 "transport": "streamable_http",
-                "headers": {"x-api-key": settings.MCP_API_KEY},
+                "headers": _headers(),
             }
         }
     )
