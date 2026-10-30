@@ -7,7 +7,9 @@ from src.a2a.server import mount as mount_a2a
 from src.api.routes import chat, debug
 from src.core.config.settings import settings
 from src.core.llm.keys import key_client
+from src.core.observability.errors import register_error_handlers
 from src.core.observability.langsmith_tracing import warn_if_global_tracing
+from src.core.observability.observability import setup_observability
 from src.infra.database.mongo.indexes.user_memory_indexes import (
     ensure_user_memory_indexes,
 )
@@ -30,6 +32,10 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+# logo após criar a app, nesta ordem -> os erros usam o span criado pela observabilidade
+setup_observability(app, "ai-assistant")
+register_error_handlers(app)
 
 app.add_middleware(
     CORSMiddleware,
