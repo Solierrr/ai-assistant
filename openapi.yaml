@@ -12,7 +12,7 @@ info:
   license:
     name: CC0-1.0
     url: https://creativecommons.org/publicdomain/zero/1.0/
-  version: 3.1.2 # x-release-please-version
+  version: 3.2.0 # x-release-please-version
 servers:
 - url: https://ai-assistant-5ljd.onrender.com
   description: QA
