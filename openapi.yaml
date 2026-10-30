@@ -31,14 +31,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ChatResponse'
-        '401':
-          description: Cabecalho Authorization ausente ou fora do formato Bearer, ou access token invalido ou expirado.
-        '422':
-          description: Validation Error
+        '400':
+          description: Validation Error (VALIDATION_ERROR), com errors[{field, message}].
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+                $ref: '#/components/schemas/ValidationProblem'
+        '401':
+          description: Cabecalho Authorization ausente ou fora do formato Bearer, ou access token invalido ou expirado (UNAUTHENTICATED).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
         '503':
           description: Validacao do access token nao configurada fora do ambiente LOCAL.
       security:
@@ -102,41 +106,57 @@ components:
       - response
       title: ChatResponse
       description: O que a API devolve no POST /chat.
-    HTTPValidationError:
-      properties:
-        detail:
-          items:
-            $ref: '#/components/schemas/ValidationError'
-          type: array
-          title: Detail
+    ProblemDetail:
       type: object
-      title: HTTPValidationError
-    ValidationError:
-      properties:
-        loc:
-          items:
-            anyOf:
-            - type: string
-            - type: integer
-          type: array
-          title: Location
-        msg:
-          type: string
-          title: Message
-        type:
-          type: string
-          title: Error Type
-        input:
-          title: Input
-        ctx:
-          type: object
-          title: Context
-      type: object
+      title: ProblemDetail
+      description: Corpo de todo erro (application/problem+json). Sem campo type.
       required:
-      - loc
-      - msg
-      - type
-      title: ValidationError
+      - title
+      - status
+      - detail
+      - errorCode
+      - timestamp
+      properties:
+        title:
+          type: string
+          description: Reason phrase do status.
+          example: Bad Request
+        status:
+          type: integer
+          example: 400
+        detail:
+          type: string
+          description: Texto para humanos; o cliente decide pelo errorCode.
+        instance:
+          type: string
+          example: /chat
+        errorCode:
+          type: string
+          example: VALIDATION_ERROR
+        timestamp:
+          type: string
+          format: date-time
+        traceId:
+          type: string
+          description: Só aparece quando há span ativo.
+    ValidationProblem:
+      title: ValidationProblem
+      allOf:
+      - $ref: '#/components/schemas/ProblemDetail'
+      - type: object
+        properties:
+          errors:
+            type: array
+            items:
+              type: object
+              properties:
+                field:
+                  type: string
+                  nullable: true
+                  example: items.0.qty
+                message:
+                  type: string
+                  example: Field required
   securitySchemes:
     bearerAuth:
       type: http
