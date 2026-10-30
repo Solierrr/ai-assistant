@@ -2,15 +2,35 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from src.api.auth import require_valid_token
+from src.api.outcome import turn_outcome
 from src.api.schemas.chat import ChatRequest, ChatResponse
 from src.core.security.conversation_access import ConversationAccessDenied
 from src.workflow.runner import execute_turn
 
-router = APIRouter(tags=["chat"])
-bearer_scheme = HTTPBearer(auto_error=False)
+router = APIRouter(tags=["Conversa"])
+bearer_scheme = HTTPBearer(
+    auto_error=False, scheme_name="bearerAuth", bearerFormat="JWT"
+)
 
 
-@router.post("/chat", response_model=ChatResponse)
+@router.post(
+    "/chat",
+    response_model=ChatResponse,
+    operation_id="sendChatMessage",
+    summary="Envia uma mensagem ao assistente e devolve a resposta do turno",
+    description=(
+        "Roda um turno do assistente com o JWT do usuário. Recusa do guardrail, "
+        "fallback e falha de ferramenta não são erro HTTP: voltam 200 com outcome "
+        "e reason. Grava a mensagem do usuário e a do assistente no api-messenger."
+    ),
+    responses={
+        401: {"description": "JWT ausente ou malformado"},
+        422: {"description": "Corpo inválido"},
+    },
+    openapi_extra={
+        "x-error-codes": ["UNAUTHENTICATED", "VALIDATION_FAILED", "INTERNAL_ERROR"]
+    },
+)
 async def conversar(
     requisicao: ChatRequest,
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
@@ -38,9 +58,12 @@ async def conversar(
         ) from erro
     final_message = final_state["messages"][-1]
     metadata = final_message.additional_kwargs
+    outcome, reason = turn_outcome(final_state)
 
     return ChatResponse(
         response=final_message.content,
+        outcome=outcome,
+        reason=reason,
         specialists_used=metadata.get("specialists_used", []),
         workflow_steps=metadata.get(
             "workflow_steps", final_state.get("turn_agents", [])
