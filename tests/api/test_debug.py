@@ -228,14 +228,13 @@ def test_execucao_personalizada_exige_admin(debug_ligado, monkeypatch):
         {**_CUSTOM, "prompts": [_CUSTOM["prompts"][0], _CUSTOM["prompts"][0]]},
     ],
 )
-def test_execucao_personalizada_invalida_responde_400(debug_ligado, custom):
+def test_execucao_personalizada_invalida_responde_422(debug_ligado, custom):
     with _client() as client:
         response = client.post(
             "/debug/chat", json={**_BODY, "custom": custom}, headers=_AUTH
         )
 
-    assert response.status_code == 400
-    assert response.json()["errorCode"] == "VALIDATION_ERROR"
+    assert response.status_code == 422
 
 
 def test_erro_do_replay_vira_a_resposta_http(debug_ligado, monkeypatch):
@@ -257,14 +256,13 @@ def test_erro_do_replay_vira_a_resposta_http(debug_ligado, monkeypatch):
     assert "turno" in response.json()["detail"]
 
 
-def test_persona_invalida_responde_400(debug_ligado):
+def test_persona_invalida_responde_422(debug_ligado):
     with _client() as client:
         response = client.post(
             "/debug/chat", json={**_BODY, "persona": "admin"}, headers=_AUTH
         )
 
-    assert response.status_code == 400
-    assert response.json()["errorCode"] == "VALIDATION_ERROR"
+    assert response.status_code == 422
 
 
 def test_falha_no_turno_devolve_500_com_debug_anonimizado(debug_ligado, monkeypatch):

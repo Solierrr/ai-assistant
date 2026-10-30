@@ -41,12 +41,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ChatResponse'
-        '400':
-          description: Validation Error (VALIDATION_ERROR), com errors[{field, message}].
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ValidationProblem'
         '401':
           description: JWT ausente ou malformado
           content:

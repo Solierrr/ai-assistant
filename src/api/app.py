@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 
 from src.a2a.server import mount as mount_a2a
+from src.api.errors import register_error_handlers
 from src.api.routes import chat, debug, health
 from src.api.schemas.problem import ProblemDetail
 from src.core.config.settings import settings
@@ -67,9 +68,16 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# logo após criar a app, nesta ordem -> os erros usam o span criado pela observabilidade
+# logo após criar a app -> os spans HTTP já existem quando os middlewares e as rotas entram
 setup_observability(app, "ai-assistant")
-register_error_handlers(app)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=cors_origins(settings.CORS_ALLOWED_ORIGINS),
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
+)
 
 register_error_handlers(app)
 app.include_router(chat.router)
