@@ -74,3 +74,17 @@ def test_get_mcp_tools_by_name_avisa_quando_falta_uma(monkeypatch, caplog):
 
     assert [t.name for t in resultado] == ["recomendar_ofertas"]
     assert "ferramenta_antiga" in caplog.text
+
+
+def test_headers_enviam_a_chave_de_servico(monkeypatch):
+    monkeypatch.setattr(client.settings, "SERVICE_KEY", "k" * 32)
+    monkeypatch.setattr(client.settings, "MCP_API_KEY", None)
+
+    assert client._headers() == {"X-Service-Key": "k" * 32}
+
+
+def test_headers_mantem_a_chave_antiga_enquanto_definida(monkeypatch):
+    monkeypatch.setattr(client.settings, "SERVICE_KEY", "k" * 32)
+    monkeypatch.setattr(client.settings, "MCP_API_KEY", "antiga")
+
+    assert client._headers() == {"X-Service-Key": "k" * 32, "x-api-key": "antiga"}

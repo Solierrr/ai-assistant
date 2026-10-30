@@ -6,7 +6,13 @@
   "packages": {
     ".": {
       "release-type": "simple",
-      "package-name": "ai-assistant"
+      "package-name": "ai-assistant",
+      "extra-files": [
+        {
+          "type": "generic",
+          "path": "openapi.yaml"
+        }
+      ]
     }
   }
 }
