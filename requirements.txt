@@ -28,4 +28,13 @@ pyjwt
 langsmith
 solaria-network[a2a]>=0.2,<0.3
 python-dotenv
+
+# observabilidade (modelo SOLIER FastAPI: src/core/observability/)
+opentelemetry-sdk==1.45.1
+opentelemetry-exporter-otlp-proto-http==1.45.1
+opentelemetry-instrumentation-fastapi==0.66b1
+opentelemetry-instrumentation-httpx==0.66b1
+opentelemetry-instrumentation-logging==0.66b1
+opentelemetry-instrumentation-pymongo==0.66b1
+opentelemetry-instrumentation-redis==0.66b1
 pyyaml

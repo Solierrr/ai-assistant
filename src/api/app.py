@@ -10,6 +10,7 @@ from src.api.routes import chat, debug, health
 from src.api.schemas.problem import ProblemDetail
 from src.core.config.settings import settings
 from src.core.observability.langsmith_tracing import warn_if_global_tracing
+from src.core.observability.observability import setup_observability
 from src.infra.database.mongo.indexes.user_memory_indexes import (
     ensure_user_memory_indexes,
 )
@@ -66,6 +67,9 @@ app = FastAPI(
     },
     lifespan=lifespan,
 )
+
+# logo após criar a app -> os spans HTTP já existem quando os middlewares e as rotas entram
+setup_observability(app, "ai-assistant")
 
 app.add_middleware(
     CORSMiddleware,
