@@ -1,0 +1,9 @@
+{
+  "service": "ai-assistant",
+  "aliases": [
+    "assistant",
+    "ai-assistant"
+  ],
+  "project": "AI",
+  "host": "https://assistant.solarianetwork.site"
+}
