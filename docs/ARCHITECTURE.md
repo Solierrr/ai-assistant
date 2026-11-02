@@ -407,7 +407,6 @@ O índice é criado pela ingestão. Em qualquer um dos três resultados da busca
 flowchart LR
     NOS["cada nó e cada chamada de LLM ou ferramenta"] --> ST["StepTracker<br/>tokens, latência, custo, erro por passo"]
     ST --> MSG["api-messenger<br/>llm-observability"]
-    MSG --> BI["data mart e dashboard de BI<br/>(agregação de custo, ROI, custo por resolução)"]
     NOS --> OT["OpenTelemetry<br/>métricas e traces OTLP"]
     NOS -.->|"opcional, SOLARIA_LANGSMITH_ENABLED"| LS["LangSmith<br/>trace por turno, PII mascarada"]
     NOS --> DBG["POST /debug/chat<br/>entrada e saída de cada nó, só admins"]
@@ -420,7 +419,6 @@ O requisito de SRE da disciplina e onde cada item está:
 | Custo por chamada | Existe: `costUsd` por passo, calculado dos tokens e da tabela de preços `src/core/config/model_pricing.py` |
 | Latência entre agentes e tempo total | Registrada por passo no `StepTracker` e enviada ao `api-messenger` |
 | Índice de erros | Cada passo de erro é registrado com categoria (`rate_limited`, `timeout`, `connection_error`), e todo turno devolve `outcome` e `reason` |
-| Custo por resolução e ROI | Os passos de cada conversa ficam no `api-messenger` e alimentam o data mart e o dashboard de BI |
 
 ## 6. Requisitos da disciplina e onde cada um está
 
@@ -451,4 +449,4 @@ O que torna este projeto mais do que um chatbot com um prompt:
 6. **Tolerância a falhas de LLM.** Três provedores (Gemini, Groq, OpenAI) com ordem configurável e fallback entre eles, e degradação explícita (`DEGRADED`) quando o guardrail não consegue avaliar.
 7. **Duas personas** (`demandante` e `profissional`) que mudam o que o agente pode ler e recomendar.
 8. **Observabilidade por passo**, com custo por chamada, mais um modo debug para administradores que mostra a entrada e a saída de cada nó e permite reexecutar um nó com o prompt editado.
-9. **Contrato e qualidade automatizados.** OpenAPI gerado do código e conferido no CI, erros em `application/problem+json`, `ruff`, `pytest` com cobertura e SonarQube; cerca de 5 mil linhas em `src` e 293 testes.
+9. **Contrato e qualidade automatizados.** OpenAPI gerado do código e conferido no CI, erros em `application/problem+json`, `ruff`, `pytest` com cobertura e SonarQube.
