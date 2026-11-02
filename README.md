@@ -132,6 +132,7 @@ Para conversar pelo terminal sem a API, rode `python main.py` e cole um JWT emit
 
 ## Documentação
 
+- [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md): arquitetura de alto nível, diagramas, requisitos da disciplina e complexidade; decisões em [docs/decisions](./docs/decisions)
 - [docs/nps.md](./docs/nps.md): avaliação da conversa (`messenger_conversation_id`)
 - [docs/observability-cost.md](./docs/observability-cost.md) e [docs/observability-langsmith.md](./docs/observability-langsmith.md)
 - [docs/long-term-memory-limitations.md](./docs/long-term-memory-limitations.md)
