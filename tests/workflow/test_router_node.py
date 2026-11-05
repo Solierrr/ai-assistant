@@ -20,7 +20,7 @@ def _mock_llm(route, direct_response=""):
 
 def test_router_routes_to_valid_specialist(monkeypatch):
     llm = _mock_llm("solar_panel_specialist")
-    monkeypatch.setattr(router_node, "llm_groq", Mock(return_value=llm))
+    monkeypatch.setattr(router_node, "llm_groq_openai", Mock(return_value=llm))
     result = router_node.router_node(
         {"messages": [HumanMessage(content="Preciso de paineis solares")]}
     )
@@ -36,7 +36,7 @@ def test_router_routes_to_valid_specialist(monkeypatch):
 
 def test_router_routes_to_solar_calculator(monkeypatch):
     llm = _mock_llm("solar_calculator")
-    monkeypatch.setattr(router_node, "llm_groq", Mock(return_value=llm))
+    monkeypatch.setattr(router_node, "llm_groq_openai", Mock(return_value=llm))
 
     result = router_node.router_node(
         {"messages": [HumanMessage(content="Calcule meu sistema solar")]}
@@ -46,7 +46,7 @@ def test_router_routes_to_solar_calculator(monkeypatch):
 
 
     llm = _mock_llm("orchestrator")
-    monkeypatch.setattr(router_node, "llm_groq", Mock(return_value=llm))
+    monkeypatch.setattr(router_node, "llm_groq_openai", Mock(return_value=llm))
     result = router_node.router_node(
         {"messages": [HumanMessage(content="Ja respondeu")], "turn_agents": ["solar_panel_specialist"]}
     )
@@ -55,7 +55,7 @@ def test_router_routes_to_solar_calculator(monkeypatch):
 
 def test_router_returns_direct_response(monkeypatch):
     llm = _mock_llm(None, "Posso ajudar com informacoes sobre a Solaria.")
-    monkeypatch.setattr(router_node, "llm_groq", Mock(return_value=llm))
+    monkeypatch.setattr(router_node, "llm_groq_openai", Mock(return_value=llm))
     result = router_node.router_node({"messages": [HumanMessage(content="O que e a Solaria?")]})
     assert result["route"] == "end"
     assert result["messages"][0].content == "Posso ajudar com informacoes sobre a Solaria."
@@ -63,7 +63,7 @@ def test_router_returns_direct_response(monkeypatch):
 
 def test_router_short_circuits_at_specialist_limit(monkeypatch):
     llm = Mock()
-    monkeypatch.setattr(router_node, "llm_groq", Mock(return_value=llm))
+    monkeypatch.setattr(router_node, "llm_groq_openai", Mock(return_value=llm))
     monkeypatch.setattr(router_node.config, "MAX_SPECIALISTS_PER_REQUEST", 1)
     result = router_node.router_node(
         {"messages": [HumanMessage(content="Mais uma")], "turn_agents": ["faq_reader"]}
@@ -74,7 +74,7 @@ def test_router_short_circuits_at_specialist_limit(monkeypatch):
 
 def test_router_only_offers_unused_routes(monkeypatch):
     llm = _mock_llm("faq_reader")
-    monkeypatch.setattr(router_node, "llm_groq", Mock(return_value=llm))
+    monkeypatch.setattr(router_node, "llm_groq_openai", Mock(return_value=llm))
 
     router_node.router_node(
         {
@@ -92,7 +92,7 @@ def test_router_only_offers_unused_routes(monkeypatch):
 
 def test_router_falls_back_for_invalid_route(monkeypatch):
     llm = _mock_llm("rota_inventada")
-    monkeypatch.setattr(router_node, "llm_groq", Mock(return_value=llm))
+    monkeypatch.setattr(router_node, "llm_groq_openai", Mock(return_value=llm))
     result = router_node.router_node({"messages": [HumanMessage(content="Ajuda")]})
     assert result == {"route": "orchestrator", "turn_agents": ["router_invalid_route"]}
 
@@ -100,14 +100,14 @@ def test_router_falls_back_for_invalid_route(monkeypatch):
 def test_router_falls_back_for_malformed_response(monkeypatch):
     llm = Mock()
     llm.invoke.return_value = AIMessage(content="Escolha faq_reader")
-    monkeypatch.setattr(router_node, "llm_groq", Mock(return_value=llm))
+    monkeypatch.setattr(router_node, "llm_groq_openai", Mock(return_value=llm))
     result = router_node.router_node({"messages": [HumanMessage(content="Ajuda")]})
     assert result == {"route": "orchestrator", "turn_agents": ["router_invalid_response"]}
 
 
 def test_router_falls_back_when_direct_response_is_empty(monkeypatch):
     llm = _mock_llm(None)
-    monkeypatch.setattr(router_node, "llm_groq", Mock(return_value=llm))
+    monkeypatch.setattr(router_node, "llm_groq_openai", Mock(return_value=llm))
 
     result = router_node.router_node({"messages": [HumanMessage(content="Ajuda")]})
 
