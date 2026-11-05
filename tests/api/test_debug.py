@@ -180,7 +180,7 @@ def test_execucao_personalizada_roda_so_o_no_e_confirma_no_debug(
         )
         await collector.on_chain_end({"route": "faq_reader"}, run_id="n1")
         chamada.update(thread_id=thread_id, token=token, kwargs=kwargs)
-        return {}, ("faq_reader",), 1
+        return {}, ("faq_reader",), 1, {"user_message": False, "messages": 0, "state": []}
 
     monkeypatch.setattr(
         "src.api.routes.debug.execute_single_node", fake_execute_single_node
@@ -200,6 +200,7 @@ def test_execucao_personalizada_roda_so_o_no_e_confirma_no_debug(
         "occurrence": 0,
         "stopped": True,
         "overrides_applied": 1,
+        "inputs_edited": {"user_message": False, "messages": 0, "state": []},
         "next": ["faq_reader"],
     }
     assert debug["persisted"] is False
@@ -401,7 +402,7 @@ def test_execucao_personalizada_deixa_log_de_auditoria_sem_conteudo(
     debug_ligado, monkeypatch, caplog
 ):
     async def fake_execute_single_node(*args, **kwargs):
-        return {}, ("router",), 1
+        return {}, ("router",), 1, {"user_message": False, "messages": 0, "state": []}
 
     monkeypatch.setattr(
         "src.api.routes.debug.execute_single_node", fake_execute_single_node

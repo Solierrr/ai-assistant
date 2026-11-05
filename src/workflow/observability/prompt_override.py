@@ -34,7 +34,19 @@ class PromptOverride(AsyncCallbackHandler):
             return
         for group in messages:
             for position, new_text in wanted.items():
-                is_system = position < len(group) and group[position].type == "system"
-                if is_system and group[position].content != new_text:
+                if position >= len(group) or not editable_message(group[position]):
+                    continue
+                if group[position].content != new_text:
                     group[position].content = new_text
                     self.applied += 1
+
+
+def editable_message(message) -> bool:
+    """Qualquer mensagem do prompt (system, human, ai) pode ser editada.
+
+    Ficam de fora as que carregam decisão de tool: o resultado de uma tool e a
+    mensagem do modelo que pediu uma tool.
+    """
+    if message.type == "tool":
+        return False
+    return not getattr(message, "tool_calls", None)
