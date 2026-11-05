@@ -49,6 +49,69 @@ def check_replayable(node: str) -> None:
         raise ReplayError(422, reason)
 
 
+# Campos do estado que o usuário pode alterar na ENTRADA do nó. `route` e
+# `turn_agents` ficam de fora: são decisões (de roteamento e de qual agente/tool
+# roda) e continuam vindo do que o fluxo de fato produziu. `user_id` também.
+EDITABLE_STATE_FIELDS = frozenset(
+    {
+        "summary",
+        "user_memory",
+        "pii_map",
+        "judge_retries",
+        "judge_status",
+        "awaiting_decision",
+    }
+)
+
+
+def apply_input_edits(
+    values: dict,
+    *,
+    user_message: str | None,
+    message_edits: dict[int, str],
+    state_edits: dict,
+) -> tuple[dict, dict]:
+    """Devolve (valores editados, resumo do que foi alterado) sem tocar no original."""
+    from src.workflow.observability.prompt_override import editable_message
+
+    edited = dict(values)
+    summary = {"user_message": False, "messages": 0, "state": []}
+
+    messages = list(edited.get("messages") or [])
+    changes: dict[int, str] = dict(message_edits)
+    if user_message is not None:
+        last_human = next(
+            (i for i in range(len(messages) - 1, -1, -1) if messages[i].type == "human"),
+            None,
+        )
+        if last_human is None:
+            raise ReplayError(422, "Não há mensagem do usuário na entrada deste nó.")
+        changes[last_human] = user_message
+        summary["user_message"] = True
+
+    for index, content in changes.items():
+        if index >= len(messages):
+            raise ReplayError(422, f"A entrada deste nó não tem a mensagem {index}.")
+        if not editable_message(messages[index]):
+            raise ReplayError(
+                422,
+                f"A mensagem {index} carrega uma decisão de tool e não pode ser editada.",
+            )
+        if messages[index].content != content:
+            messages[index] = messages[index].model_copy(update={"content": content})
+            summary["messages"] += 1
+    if changes:
+        edited["messages"] = messages
+
+    for key, value in state_edits.items():
+        if key not in EDITABLE_STATE_FIELDS:
+            raise ReplayError(422, f"O campo de estado '{key}' não pode ser editado.")
+        if edited.get(key) != value:
+            edited[key] = value
+            summary["state"].append(key)
+    return edited, summary
+
+
 async def run_single_node(
     workflow,
     thread_id: str,
@@ -60,6 +123,9 @@ async def run_single_node(
     callbacks: list,
     metadata: dict,
     tags: list[str],
+    user_message: str | None = None,
+    message_edits: dict[int, str] | None = None,
+    state_edits: dict | None = None,
 ):
     check_replayable(node)
     turns = await _turns(workflow, thread_id)
@@ -86,10 +152,14 @@ async def run_single_node(
     copy_id = f"{thread_id}:replay:{uuid4().hex[:8]}"
     copy_config = {"configurable": {"thread_id": copy_id}}
     override = PromptOverride(node, overrides)
+    values, edited_inputs = apply_input_edits(
+        target.values,
+        user_message=user_message,
+        message_edits=message_edits or {},
+        state_edits=state_edits or {},
+    )
     try:
-        await workflow.aupdate_state(
-            copy_config, target.values, as_node=previous.next[0]
-        )
+        await workflow.aupdate_state(copy_config, values, as_node=previous.next[0])
         restored = await workflow.aget_state(copy_config)
         if restored.next != (node,):
             raise ReplayError(
@@ -107,7 +177,7 @@ async def run_single_node(
             interrupt_after=[node],
         )
         after = await workflow.aget_state(copy_config)
-        return state, tuple(after.next), override.applied
+        return state, tuple(after.next), override.applied, edited_inputs
     finally:
         try:
             await workflow.checkpointer.adelete_thread(copy_id)
