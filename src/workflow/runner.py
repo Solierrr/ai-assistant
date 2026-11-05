@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import re
 import weakref
 from collections.abc import Sequence
 from uuid import uuid4
@@ -85,15 +86,35 @@ def _agendar_atualizacao_memoria(
     task.add_done_callback(_background_tasks.discard)
 
 
+# Mesmo formato que o api-messenger aceita em `conversationId`.
+_MESSENGER_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{7,63}$")
+
+
 async def _get_or_create_conversation_id(
-    thread_id: str, user_token: str, user_details: dict | None = None
+    thread_id: str,
+    user_token: str,
+    user_details: dict | None = None,
+    messenger_conversation_id: str | None = None,
 ) -> str:
     """Reaproveita, por thread_id, a conversa já aberta no api-messenger;
-    cria uma nova na primeira mensagem do turno."""
+    cria uma nova na primeira mensagem do turno.
+
+    `messenger_conversation_id` (o Session ID do sandbox) vira o id da conversa no
+    api-messenger, para a busca por Session ID achar a conversa. Fora do formato que
+    o api-messenger aceita, o id é ignorado e o api-messenger gera um."""
     conversation_id = _conversations_por_thread.get(thread_id)
     if conversation_id is None:
+        wanted = (
+            messenger_conversation_id
+            if messenger_conversation_id
+            and _MESSENGER_ID.fullmatch(messenger_conversation_id)
+            else None
+        )
         conversation_id = await criar_conversa_chatbot(
-            "lead", user_details or {}, user_token=user_token
+            "lead",
+            user_details or {},
+            user_token=user_token,
+            **({"conversation_id": wanted} if wanted else {}),
         )
         _conversations_por_thread[thread_id] = conversation_id
     return conversation_id
@@ -120,6 +141,7 @@ async def execute_turn(
     save_history: bool = False,
     extra_callbacks: Sequence = (),
     source: str = "chat",
+    messenger_conversation_id: str | None = None,
 ) -> dict:
     """Um turno por vez em cada conversa, e só o dono dela pode continuá-la."""
     async with _lock_for(conversation_id):
@@ -133,6 +155,7 @@ async def execute_turn(
             save_history=save_history,
             extra_callbacks=extra_callbacks,
             source=source,
+            messenger_conversation_id=messenger_conversation_id,
         )
 
 
@@ -147,6 +170,7 @@ async def _execute_turn(
     save_history: bool = False,
     extra_callbacks: Sequence = (),
     source: str = "chat",
+    messenger_conversation_id: str | None = None,
 ) -> dict:
     """Roda um turno do grafo.
 
@@ -175,6 +199,7 @@ async def _execute_turn(
                 "threadId": conversation_id,
                 "persona": persona,
             },
+            messenger_conversation_id,
         )
 
         await enviar_mensagem_usuario(

@@ -9,8 +9,16 @@ def _service_headers() -> dict:
     return {"X-Service-Key": settings.SERVICE_KEY} if settings.SERVICE_KEY else {}
 
 
-async def criar_conversa_chatbot(user_type: str, user_details: dict, user_token: str) -> str:
-    """Cria a conversa com o JWT do usuário real."""
+async def criar_conversa_chatbot(
+    user_type: str,
+    user_details: dict,
+    user_token: str,
+    conversation_id: str | None = None,
+) -> str:
+    """Cria a conversa com o JWT do usuário real.
+
+    Com `conversation_id`, o api-messenger usa esse id na conversa (e reaproveita a
+    do mesmo usuário que já exista com ele); sem, gera o id."""
     async with httpx.AsyncClient(timeout=60.0) as client:
         resp = await client.post(
             f"{settings.API_MESSENGER_URL}/messaging/conversations/chatbot-conversations",
@@ -18,6 +26,7 @@ async def criar_conversa_chatbot(user_type: str, user_details: dict, user_token:
                 "userType": user_type,
                 "userDetails": user_details,
                 "environment": settings.ENVIRONMENT,
+                **({"conversationId": conversation_id} if conversation_id else {}),
             },
             headers={"Authorization": f"Bearer {user_token}"},
         )

@@ -149,3 +149,35 @@ def test_service_key_usa_a_chave_do_proprio_servico_como_reserva(monkeypatch):
     monkeypatch.setenv("SERVICE_KEY_AI_ASSISTANT", "chave-do-servico")
 
     assert client.settings.__class__(_env_file=None).SERVICE_KEY == "chave-do-servico"
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_criar_conversa_manda_o_id_escolhido_quando_informado(monkeypatch):
+    monkeypatch.setattr(client.settings, "API_MESSENGER_URL", "http://api-messenger")
+
+    criar_route = respx.post(
+        "http://api-messenger/messaging/conversations/chatbot-conversations"
+    ).mock(return_value=Response(201, json={"id": "sandbox-0dd2a4d3"}))
+
+    conversation_id = await client.criar_conversa_chatbot(
+        "lead", {}, user_token="t", conversation_id="sandbox-0dd2a4d3"
+    )
+
+    assert conversation_id == "sandbox-0dd2a4d3"
+    corpo = json.loads(criar_route.calls.last.request.content)
+    assert corpo["conversationId"] == "sandbox-0dd2a4d3"
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_criar_conversa_sem_id_nao_manda_conversation_id(monkeypatch):
+    monkeypatch.setattr(client.settings, "API_MESSENGER_URL", "http://api-messenger")
+
+    criar_route = respx.post(
+        "http://api-messenger/messaging/conversations/chatbot-conversations"
+    ).mock(return_value=Response(201, json={"id": "gerado"}))
+
+    await client.criar_conversa_chatbot("lead", {}, user_token="t")
+
+    assert "conversationId" not in json.loads(criar_route.calls.last.request.content)
