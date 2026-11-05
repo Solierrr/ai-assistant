@@ -97,9 +97,7 @@ async def test_roda_so_o_no_e_para_nele():
     await _turno(app)
     collector = DebugTracker()
 
-    _, proximos, aplicados, _ = await _rodar(
-        app, "especialista", collector=collector
-    )
+    _, proximos, aplicados, _ = await _rodar(app, "especialista", collector=collector)
 
     nos = collector.snapshot()["nodes"]
     assert [n["node"] for n in nos] == ["especialista"]

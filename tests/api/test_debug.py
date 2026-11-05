@@ -180,7 +180,12 @@ def test_execucao_personalizada_roda_so_o_no_e_confirma_no_debug(
         )
         await collector.on_chain_end({"route": "faq_reader"}, run_id="n1")
         chamada.update(thread_id=thread_id, token=token, kwargs=kwargs)
-        return {}, ("faq_reader",), 1, {"user_message": False, "messages": 0, "state": []}
+        return (
+            {},
+            ("faq_reader",),
+            1,
+            {"user_message": False, "messages": 0, "state": []},
+        )
 
     monkeypatch.setattr(
         "src.api.routes.debug.execute_single_node", fake_execute_single_node
@@ -205,7 +210,7 @@ def test_execucao_personalizada_roda_so_o_no_e_confirma_no_debug(
     }
     assert debug["persisted"] is False
     assert chamada["thread_id"] == f"debug:{ADMIN_SUB}:conv-1"
-    assert chamada["kwargs"]["overrides"] == {0: {0: "NOVO PROMPT"}}
+    assert chamada["kwargs"]["overrides"] == {0: {0: "NOVO PROMPT", 1: "oi"}}
     assert chamada["kwargs"]["node"] == "router"
 
 

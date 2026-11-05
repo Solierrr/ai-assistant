@@ -81,7 +81,11 @@ def apply_input_edits(
     changes: dict[int, str] = dict(message_edits)
     if user_message is not None:
         last_human = next(
-            (i for i in range(len(messages) - 1, -1, -1) if messages[i].type == "human"),
+            (
+                i
+                for i in range(len(messages) - 1, -1, -1)
+                if messages[i].type == "human"
+            ),
             None,
         )
         if last_human is None:
