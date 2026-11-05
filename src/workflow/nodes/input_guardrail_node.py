@@ -11,7 +11,7 @@ from src.core.guardrails.injection_patterns import (
     matches_internal_data_keyword,
 )
 from src.core.guardrails.prompt import _PROMPT_CLASSIFICADOR
-from src.core.llm.llm_groq import llm_groq
+from src.core.llm.llm_groq_openai import llm_groq_openai
 from src.workflow.state import GraphState
 
 logger = logging.getLogger(__name__)
@@ -99,7 +99,7 @@ def input_guardrail_node(state: GraphState, config=None) -> dict:
     formatted_prompt = INPUT_GUARDRAIL_PROMPT.format(mensagem=anonymized_text)
 
     try:
-        resposta = llm_groq().invoke(
+        resposta = llm_groq_openai().invoke(
             [HumanMessage(content=formatted_prompt)], config=config
         )
         classificacao = _parse_classificacao(resposta.content)

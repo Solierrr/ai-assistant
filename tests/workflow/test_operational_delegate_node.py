@@ -109,7 +109,7 @@ def test_usa_a_ultima_mensagem_do_usuario(monkeypatch):
 
 def test_decisao_pendente_volta_direto_ao_agente_operacional(monkeypatch):
     llm = Mock()
-    monkeypatch.setattr(router_node, "llm_groq", Mock(return_value=llm))
+    monkeypatch.setattr(router_node, "llm_groq_openai", Mock(return_value=llm))
     state = {"messages": [HumanMessage(content="sim")], "awaiting_decision": True}
 
     result = router_node.router_node(state)
@@ -119,7 +119,7 @@ def test_decisao_pendente_volta_direto_ao_agente_operacional(monkeypatch):
 
 
 def test_decisao_pendente_ja_consultada_nao_entra_em_laco(monkeypatch):
-    monkeypatch.setattr(router_node, "llm_groq", Mock())
+    monkeypatch.setattr(router_node, "llm_groq_openai", Mock())
     state = {
         "messages": [HumanMessage(content="sim")],
         "awaiting_decision": True,
