@@ -253,6 +253,9 @@ async def execute_single_node(
     overrides: dict[int, dict[int, str]],
     persona: str = "demandante",
     extra_callbacks: Sequence = (),
+    user_message: str | None = None,
+    message_edits: dict[int, str] | None = None,
+    state_edits: dict | None = None,
 ):
     current_user_token.set(user_token)
     current_persona.set(persona)
@@ -273,4 +276,7 @@ async def execute_single_node(
             "persona": persona,
         },
         tags=[settings.ENVIRONMENT.lower()],
+        user_message=user_message,
+        message_edits=message_edits,
+        state_edits=state_edits,
     )

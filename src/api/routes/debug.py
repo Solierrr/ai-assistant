@@ -20,7 +20,7 @@ from src.api.outcome import TurnOutcome, turn_outcome
 from src.api.schemas.chat import ChatRequest, ChatResponse
 from src.core.config.settings import settings
 from src.core.security.jwt import decode_user_id
-from src.workflow.debug_replay import ReplayError, count_turns
+from src.workflow.debug_replay import EDITABLE_STATE_FIELDS, ReplayError, count_turns
 from src.workflow.observability.debug_tracker import DebugTracker, mask_pii
 from src.workflow.runner import execute_single_node, execute_turn
 
@@ -45,6 +45,11 @@ class PromptOverrideItem(BaseModel):
     prompt: list[PromptMessage]
 
 
+class MessageEdit(BaseModel):
+    index: int = Field(ge=0, le=10000, description="Posição em state.messages.")
+    content: str
+
+
 class CustomRun(BaseModel):
     turn: int = Field(
         0, ge=0, le=1000, description="Posição do turno na conversa de debug."
@@ -55,6 +60,17 @@ class CustomRun(BaseModel):
     prompts: Annotated[list[PromptOverrideItem], Field(max_length=50)] = Field(
         default_factory=list
     )
+    user_message: str | None = Field(
+        None, description="Substitui a última mensagem do usuário na entrada do nó."
+    )
+    messages: Annotated[list[MessageEdit], Field(max_length=200)] = Field(
+        default_factory=list,
+        description="Edita mensagens da entrada do nó por posição.",
+    )
+    state: dict = Field(
+        default_factory=dict,
+        description="Edita campos do estado na entrada do nó (route e turn_agents não).",
+    )
 
     @field_validator("prompts")
     @classmethod
@@ -62,6 +78,21 @@ class CustomRun(BaseModel):
         if len({item.call for item in items}) != len(items):
             raise ValueError("Chamada de LLM repetida em prompts")
         return items
+
+    @field_validator("messages")
+    @classmethod
+    def _mensagens_unicas(cls, items):
+        if len({item.index for item in items}) != len(items):
+            raise ValueError("Mensagem repetida em messages")
+        return items
+
+    @field_validator("state")
+    @classmethod
+    def _estado_editavel(cls, value):
+        invalidos = sorted(set(value) - EDITABLE_STATE_FIELDS)
+        if invalidos:
+            raise ValueError(f"Campos de estado não editáveis: {', '.join(invalidos)}")
+        return value
 
 
 class DebugChatRequest(ChatRequest):
@@ -190,12 +221,10 @@ async def _executar_no(requisicao, workflow, token, thread_id, collector, sub):
     overrides: dict[int, dict[int, str]] = {}
     for item in custom.prompts:
         overrides[item.call] = {
-            position: message.content
-            for position, message in enumerate(item.prompt)
-            if message.type == "system"
+            position: message.content for position, message in enumerate(item.prompt)
         }
     try:
-        _, proximos, aplicados = await execute_single_node(
+        _, proximos, aplicados, entradas = await execute_single_node(
             thread_id,
             workflow,
             token,
@@ -205,6 +234,9 @@ async def _executar_no(requisicao, workflow, token, thread_id, collector, sub):
             overrides=overrides,
             persona=requisicao.persona,
             extra_callbacks=[collector],
+            user_message=custom.user_message,
+            message_edits={item.index: item.content for item in custom.messages},
+            state_edits=custom.state,
         )
     except ReplayError as error:
         return JSONResponse(status_code=error.status, content={"detail": error.detail})
@@ -227,6 +259,7 @@ async def _executar_no(requisicao, workflow, token, thread_id, collector, sub):
         "occurrence": custom.occurrence,
         "stopped": True,
         "overrides_applied": aplicados,
+        "inputs_edited": entradas,
         "next": list(proximos),
     }
     return DebugChatResponse(response="", outcome=TurnOutcome.ANSWERED, debug=debug)

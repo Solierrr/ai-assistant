@@ -69,7 +69,9 @@ async def _turno(app, texto="oi"):
     )
 
 
-async def _rodar(app, node, *, turn=0, occurrence=0, overrides=None, collector=None):
+async def _rodar(
+    app, node, *, turn=0, occurrence=0, overrides=None, collector=None, **edits
+):
     return await run_single_node(
         app,
         THREAD,
@@ -80,6 +82,7 @@ async def _rodar(app, node, *, turn=0, occurrence=0, overrides=None, collector=N
         callbacks=[collector or DebugTracker()],
         metadata={},
         tags=[],
+        **edits,
     )
 
 
@@ -94,7 +97,7 @@ async def test_roda_so_o_no_e_para_nele():
     await _turno(app)
     collector = DebugTracker()
 
-    _, proximos, aplicados = await _rodar(app, "especialista", collector=collector)
+    _, proximos, aplicados, _ = await _rodar(app, "especialista", collector=collector)
 
     nos = collector.snapshot()["nodes"]
     assert [n["node"] for n in nos] == ["especialista"]
@@ -107,7 +110,7 @@ async def test_troca_o_prompt_system_e_o_debug_registra_o_texto_enviado():
     await _turno(app)
     collector = DebugTracker()
 
-    _, _, aplicados = await _rodar(
+    _, _, aplicados, _ = await _rodar(
         app, "especialista", overrides={0: {0: "PROMPT-EDITADO"}}, collector=collector
     )
 
@@ -118,13 +121,90 @@ async def test_troca_o_prompt_system_e_o_debug_registra_o_texto_enviado():
     assert chamada["prompt_complete"] is True
 
 
-async def test_so_troca_mensagem_system():
+async def test_troca_tambem_a_mensagem_do_usuario_no_prompt():
+    app = _app()
+    await _turno(app)
+    collector = DebugTracker()
+
+    _, _, aplicados, _ = await _rodar(
+        app, "especialista", overrides={0: {1: "texto novo"}}, collector=collector
+    )
+
+    chamada = collector.snapshot()["nodes"][0]["llm_calls"][0]
+    assert aplicados == 1
+    assert chamada["prompt"][1] == {"type": "human", "content": "texto novo"}
+
+
+async def test_mensagem_de_tool_nao_e_editavel_no_prompt():
+    from langchain_core.messages import ToolMessage
+
+    from src.workflow.observability.prompt_override import editable_message
+
+    assert editable_message(HumanMessage(content="a"))
+    assert editable_message(SystemMessage(content="a"))
+    assert editable_message(AIMessage(content="a"))
+    assert not editable_message(ToolMessage(content="a", tool_call_id="1"))
+    assert not editable_message(
+        AIMessage(content="", tool_calls=[{"name": "t", "args": {}, "id": "1"}])
+    )
+
+
+async def test_edita_a_mensagem_do_usuario_na_entrada_do_no():
+    app = _app()
+    await _turno(app, "oi")
+    collector = DebugTracker()
+
+    _, _, _, editado = await _rodar(
+        app, "especialista", user_message="outra pergunta", collector=collector
+    )
+
+    chamada = collector.snapshot()["nodes"][0]["llm_calls"][0]
+    assert chamada["prompt"][1] == {"type": "human", "content": "outra pergunta"}
+    assert editado == {"user_message": True, "messages": 1, "state": []}
+
+
+async def test_edicao_da_entrada_nao_altera_a_conversa_original():
+    app = _app()
+    await _turno(app, "oi")
+    antes = [s.config["configurable"]["checkpoint_id"] for s in await _historico(app)]
+
+    await _rodar(app, "especialista", user_message="outra")
+
+    depois = [s.config["configurable"]["checkpoint_id"] for s in await _historico(app)]
+    assert depois == antes
+    estado = await app.aget_state({"configurable": {"thread_id": THREAD}})
+    assert estado.values["messages"][0].content == "oi"
+
+
+async def test_edita_mensagem_por_indice():
+    app = _app()
+    await _turno(app, "oi")
+
+    _, _, _, editado = await _rodar(
+        app, "especialista", message_edits={0: "por indice"}
+    )
+
+    assert editado["messages"] == 1
+
+
+async def test_indice_de_mensagem_inexistente_responde_422():
     app = _app()
     await _turno(app)
 
-    _, _, aplicados = await _rodar(app, "especialista", overrides={0: {1: "hackeado"}})
+    with pytest.raises(ReplayError) as erro:
+        await _rodar(app, "especialista", message_edits={9: "x"})
 
-    assert aplicados == 0
+    assert erro.value.status == 422
+
+
+async def test_route_e_turn_agents_nao_sao_editaveis():
+    app = _app()
+    await _turno(app)
+
+    for campo in ("route", "turn_agents", "user_id"):
+        with pytest.raises(ReplayError) as erro:
+            await _rodar(app, "especialista", state_edits={campo: "x"})
+        assert erro.value.status == 422
 
 
 async def test_no_repetido_escolhe_a_ocorrencia():
@@ -145,7 +225,7 @@ async def test_primeiro_no_do_turno_tambem_funciona():
     await _turno(app)
     collector = DebugTracker()
 
-    _, proximos, _ = await _rodar(app, "entrada", collector=collector)
+    _, proximos, _, _ = await _rodar(app, "entrada", collector=collector)
 
     assert [n["node"] for n in collector.snapshot()["nodes"]] == ["entrada"]
     assert proximos == ("router",)
