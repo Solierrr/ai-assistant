@@ -526,3 +526,46 @@ def test_dois_turnos_da_mesma_conversa_nao_rodam_ao_mesmo_tempo(monkeypatch):
     asyncio.run(dois())
 
     assert max(maximo) == 1
+
+
+def _turno_com_id(monkeypatch, messenger_id):
+    workflow = Mock()
+    workflow.ainvoke = AsyncMock(
+        return_value={"messages": [AIMessage(content="oi", additional_kwargs={})]}
+    )
+    monkeypatch.setattr(runner, "enviar_mensagem_usuario", AsyncMock())
+    monkeypatch.setattr(runner, "enviar_mensagem_chatbot", AsyncMock())
+    monkeypatch.setattr(runner, "_conversations_por_thread", {})
+    criar = AsyncMock(return_value="api-conv-1")
+    monkeypatch.setattr(runner, "criar_conversa_chatbot", criar)
+    monkeypatch.setattr(runner, "build_tracer", Mock(return_value=None))
+
+    asyncio.run(
+        runner.execute_turn(
+            "debug:sub:sandbox-0dd2a4d3",
+            "texto",
+            workflow,
+            user_token="t",
+            messenger_conversation_id=messenger_id,
+        )
+    )
+    return criar
+
+
+def test_execute_turn_cria_a_conversa_com_o_id_do_sandbox(monkeypatch):
+    criar = _turno_com_id(monkeypatch, "sandbox-0dd2a4d3")
+
+    assert criar.await_args.kwargs["conversation_id"] == "sandbox-0dd2a4d3"
+
+
+def test_execute_turn_sem_id_do_messenger_deixa_o_api_messenger_gerar(monkeypatch):
+    criar = _turno_com_id(monkeypatch, None)
+
+    assert "conversation_id" not in criar.await_args.kwargs
+
+
+@pytest.mark.parametrize("invalido", ["curto", "com espaco", "../etc/passwd", "a" * 65])
+def test_execute_turn_ignora_id_fora_do_formato_do_api_messenger(monkeypatch, invalido):
+    criar = _turno_com_id(monkeypatch, invalido)
+
+    assert "conversation_id" not in criar.await_args.kwargs

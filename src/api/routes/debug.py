@@ -174,6 +174,8 @@ async def conversar_com_debug(
             save_history=True,
             extra_callbacks=[collector],
             source="debug",
+            # O Session ID do sandbox é o id da conversa no Mongo: a busca por Session ID acha.
+            messenger_conversation_id=requisicao.conversation_id,
         )
     except Exception as error:
         logger.exception("Falha no turno de debug")

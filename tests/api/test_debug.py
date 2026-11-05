@@ -149,6 +149,8 @@ def test_admin_recebe_resposta_com_debug_dos_nos(debug_ligado, monkeypatch):
     assert kwargs["source"] == "debug"
     assert kwargs["persona"] == "profissional"
     assert kwargs["user_token"] == "jwt-de-teste"
+    # O Session ID do sandbox é o id da conversa no api-messenger.
+    assert kwargs["messenger_conversation_id"] == "conv-1"
 
 
 _CUSTOM = {
